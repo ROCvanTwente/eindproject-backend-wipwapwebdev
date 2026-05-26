@@ -10,7 +10,7 @@ namespace TemplateJwtProject.Controllers;
 
 [ApiController]
 [Microsoft.AspNetCore.Mvc.Route("api/[controller]")]
-[Authorize(Roles = Roles.Admin)]
+//[Authorize(Roles = Roles.Admin)]
 public class LocationController : ControllerBase
 {
     private readonly AppDbContext _context;

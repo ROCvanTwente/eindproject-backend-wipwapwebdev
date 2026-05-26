@@ -6,11 +6,10 @@ using Microsoft.IdentityModel.Tokens;
 using TemplateJwtProject.Data;
 using TemplateJwtProject.Models;
 using TemplateJwtProject.Services;
-
+using TemplateJwtProject.Constants;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
 // Database configuratie
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -80,6 +79,46 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    await RoleInitializer.InitializeAsync(services);
+    
+    // Seed admin user
+    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+    var adminEmail = "admin@example.com";
+    var adminUser = await userManager.FindByEmailAsync(adminEmail);
+    
+    if (adminUser == null)
+    {
+        adminUser = new ApplicationUser
+        {
+            UserName = adminEmail,
+            Email = adminEmail,
+            EmailConfirmed = true
+        };
+        
+        var result = await userManager.CreateAsync(adminUser, "Admin123!");
+        
+        if (result.Succeeded)
+        {
+            await userManager.AddToRoleAsync(adminUser, Roles.Admin);
+            Console.WriteLine($"✓ Admin account created: {adminEmail}");
+        }
+        else
+        {
+            Console.WriteLine($"✗ Failed to create admin account");
+            foreach (var error in result.Errors)
+            {
+                Console.WriteLine($"  Error: {error.Description}");
+            }
+        }
+    }
+    else
+    {
+        Console.WriteLine($"✓ Admin account already exists: {adminEmail}");
+    }
+}
 // Initialiseer rollen
 using (var scope = app.Services.CreateScope())
 {

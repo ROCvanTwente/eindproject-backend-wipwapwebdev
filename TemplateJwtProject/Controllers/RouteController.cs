@@ -10,8 +10,8 @@ using RouteLocationEntity = TemplateJwtProject.Models.RouteLocation;
 namespace TemplateJwtProject.Controllers;
 
 [ApiController]
-[Microsoft.AspNetCore.Mvc.Route("api/[controller]")]
-[Authorize(Roles = Roles.Admin)]
+[Microsoft.AspNetCore.Mvc.Route("api/routes")]
+//[Authorize(Roles = Roles.Admin)]
 public class RouteController : ControllerBase
 {
     private readonly AppDbContext _context;

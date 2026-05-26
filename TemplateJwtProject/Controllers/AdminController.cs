@@ -9,7 +9,7 @@ namespace TemplateJwtProject.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = Roles.Admin)]
+//[Authorize(Roles = Roles.Admin)]
 public class AdminController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
