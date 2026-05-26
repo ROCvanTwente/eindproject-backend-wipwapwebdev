@@ -24,7 +24,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("assign-role")]
-    public async Task<IActionResult> AssignRole([FromBody] AssignRoleDto model)q
+    public async Task<IActionResult> AssignRole([FromBody] AssignRoleDto model)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
