@@ -82,6 +82,7 @@ public class AdminController : ControllerBase
         var user = await _userManager.FindByEmailAsync(model.Email);
         if (user == null)
         {
+            _logger.LogWarning("Force password change failed: user not found");
             return NotFound(new { message = "User not found" });
         }
 
@@ -90,26 +91,28 @@ public class AdminController : ControllerBase
             var removePasswordResult = await _userManager.RemovePasswordAsync(user);
             if (!removePasswordResult.Succeeded)
             {
-                return BadRequest(new { message = "Failed to change password", errors = removePasswordResult.Errors });
+                _logger.LogWarning("Force password change failed while removing old password");
+                return BadRequest(new { message = "Failed to remove old password", errors = removePasswordResult.Errors });
             }
         }
 
         var addPasswordResult = await _userManager.AddPasswordAsync(user, model.NewPassword);
         if (!addPasswordResult.Succeeded)
         {
-            return BadRequest(new { message = "Failed to change password", errors = addPasswordResult.Errors });
+            _logger.LogWarning("Force password change failed while setting new password");
+            return BadRequest(new { message = "Failed to set new password", errors = addPasswordResult.Errors });
         }
 
         user.PasswordChanged = true;
+        var updateResult = await _userManager.UpdateAsync(user);
 
-        var result = await _userManager.UpdateAsync(user);
-
-        if (!result.Succeeded)
+        if (!updateResult.Succeeded)
         {
-            return BadRequest(new { message = "Failed to update user", errors = result.Errors });
+            _logger.LogWarning("Force password change failed while updating user flag");
+            return BadRequest(new { message = "Failed to update user", errors = updateResult.Errors });
         }
 
-        _logger.LogInformation("Admin forced password change for user {Email}", SanitizeForLog(model.Email));
+        _logger.LogInformation("Admin forced password change successfully");
 
         return Ok(new 
         { 
@@ -185,8 +188,4 @@ public class AdminController : ControllerBase
         return Ok(adminList);
     }
 
-    private static string SanitizeForLog(string? value)
-    {
-        return value?.Replace("\r", string.Empty).Replace("\n", string.Empty) ?? string.Empty;
-    }
 }
