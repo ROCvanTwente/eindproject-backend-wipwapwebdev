@@ -71,7 +71,7 @@ public class AdminController : ControllerBase
         });
     }
     [HttpPost("force-password-change")]
-    public async Task<IActionResult> ForcePasswordChange([FromBody] AssignRoleDto model)
+    public async Task<IActionResult> ForcePasswordChange([FromBody] ForcePasswordChangeDto model)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -79,17 +79,34 @@ public class AdminController : ControllerBase
         var user = await _userManager.FindByEmailAsync(model.Email);
         if (user == null)
         {
+            _logger.LogWarning("Force password change failed: user not found for email {Email}", model.Email);
             return NotFound(new { message = "User not found" });
         }
 
-        // Set the PasswordChanged flag to true
-        user.PasswordChanged = true;
-
-        var result = await _userManager.UpdateAsync(user);
-
-        if (!result.Succeeded)
+        if (!string.IsNullOrEmpty(user.PasswordHash))
         {
-            return BadRequest(new { message = "Failed to update user", errors = result.Errors });
+            var removePasswordResult = await _userManager.RemovePasswordAsync(user);
+            if (!removePasswordResult.Succeeded)
+            {
+                _logger.LogWarning("Force password change failed while removing old password for user {Email}", model.Email);
+                return BadRequest(new { message = "Failed to remove old password", errors = removePasswordResult.Errors });
+            }
+        }
+
+        var addPasswordResult = await _userManager.AddPasswordAsync(user, model.NewPassword);
+        if (!addPasswordResult.Succeeded)
+        {
+            _logger.LogWarning("Force password change failed while setting new password for user {Email}", model.Email);
+            return BadRequest(new { message = "Failed to set new password", errors = addPasswordResult.Errors });
+        }
+
+        user.PasswordChanged = true;
+        var updateResult = await _userManager.UpdateAsync(user);
+
+        if (!updateResult.Succeeded)
+        {
+            _logger.LogWarning("Force password change failed while updating user flag for {Email}", model.Email);
+            return BadRequest(new { message = "Failed to update user", errors = updateResult.Errors });
         }
 
         _logger.LogInformation("Admin forced password change for user {Email}", model.Email);
