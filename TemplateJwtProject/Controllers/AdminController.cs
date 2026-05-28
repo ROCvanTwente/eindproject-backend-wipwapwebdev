@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using TemplateJwtProject.Constants;
 using TemplateJwtProject.Models;
 using TemplateJwtProject.Models.DTOs;
+using TemplateJwtProject.Utilities;
 
 namespace TemplateJwtProject.Controllers;
 
@@ -55,8 +56,8 @@ public class AdminController : ControllerBase
 
         _logger.LogInformation(
             "Admin assigned role {Role} to user {Email}",
-            SanitizeForLog(model.Role),
-            SanitizeForLog(model.Email));
+            LoggingUtilities.SanitizeForLog(model.Role),
+            LoggingUtilities.SanitizeForLog(model.Email));
 
         var roles = await _userManager.GetRolesAsync(user);
 
@@ -112,7 +113,9 @@ public class AdminController : ControllerBase
             return BadRequest(new { message = "Failed to update user", errors = updateResult.Errors });
         }
 
-        _logger.LogInformation("Admin forced password change successfully");
+        _logger.LogInformation(
+            "Admin forced password change for user {Email}",
+            LoggingUtilities.SanitizeForLog(model.Email));
 
         return Ok(new 
         { 
@@ -153,8 +156,8 @@ public class AdminController : ControllerBase
 
         _logger.LogInformation(
             "Admin removed role {Role} from user {Email}",
-            SanitizeForLog(model.Role),
-            SanitizeForLog(model.Email));
+            LoggingUtilities.SanitizeForLog(model.Role),
+            LoggingUtilities.SanitizeForLog(model.Email));
 
         var roles = await _userManager.GetRolesAsync(user);
         
