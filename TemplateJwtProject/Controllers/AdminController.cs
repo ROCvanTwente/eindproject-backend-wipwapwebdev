@@ -53,7 +53,10 @@ public class AdminController : ControllerBase
             return BadRequest(new { message = "Failed to assign role", errors = result.Errors });
         }
 
-        _logger.LogInformation("Admin assigned role {Role} to user {Email}", model.Role, model.Email);
+        _logger.LogInformation(
+            "Admin assigned role {Role} to user {Email}",
+            SanitizeForLog(model.Role),
+            SanitizeForLog(model.Email));
 
         var roles = await _userManager.GetRolesAsync(user);
 
@@ -113,7 +116,7 @@ public class AdminController : ControllerBase
 
         return Ok(new 
         { 
-            message = $"Password changed successfully",
+            message = "Password changed successfully",
             email = user.Email
         });
     }
@@ -148,7 +151,10 @@ public class AdminController : ControllerBase
             return BadRequest(new { message = "Failed to remove role", errors = result.Errors });
         }
 
-        _logger.LogInformation("Admin removed role {Role} from user {Email}", model.Role, model.Email);
+        _logger.LogInformation(
+            "Admin removed role {Role} from user {Email}",
+            SanitizeForLog(model.Role),
+            SanitizeForLog(model.Email));
 
         var roles = await _userManager.GetRolesAsync(user);
         
