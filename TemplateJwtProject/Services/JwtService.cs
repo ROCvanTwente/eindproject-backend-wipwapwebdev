@@ -50,6 +50,7 @@ public class JwtService : IJwtService
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
+        claims.Add(new Claim("PasswordChanged", user.PasswordChanged.ToString()));
 
         var token = new JwtSecurityToken(
             issuer: issuer,

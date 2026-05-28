@@ -53,7 +53,10 @@ public class AdminController : ControllerBase
             return BadRequest(new { message = "Failed to assign role", errors = result.Errors });
         }
 
-        _logger.LogInformation("Admin assigned role {Role} to user {Email}", model.Role, model.Email);
+        _logger.LogInformation(
+            "Admin assigned role {Role} to user {Email}",
+            SanitizeForLog(model.Role),
+            SanitizeForLog(model.Email));
 
         var roles = await _userManager.GetRolesAsync(user);
 
@@ -71,7 +74,7 @@ public class AdminController : ControllerBase
         });
     }
     [HttpPost("force-password-change")]
-    public async Task<IActionResult> ForcePasswordChange([FromBody] AssignRoleDto model)
+    public async Task<IActionResult> ForcePasswordChange([FromBody] ForcePasswordChangeDto model)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -82,7 +85,21 @@ public class AdminController : ControllerBase
             return NotFound(new { message = "User not found" });
         }
 
-        // Set the PasswordChanged flag to true
+        if (!string.IsNullOrEmpty(user.PasswordHash))
+        {
+            var removePasswordResult = await _userManager.RemovePasswordAsync(user);
+            if (!removePasswordResult.Succeeded)
+            {
+                return BadRequest(new { message = "Failed to change password", errors = removePasswordResult.Errors });
+            }
+        }
+
+        var addPasswordResult = await _userManager.AddPasswordAsync(user, model.NewPassword);
+        if (!addPasswordResult.Succeeded)
+        {
+            return BadRequest(new { message = "Failed to change password", errors = addPasswordResult.Errors });
+        }
+
         user.PasswordChanged = true;
 
         var result = await _userManager.UpdateAsync(user);
@@ -92,11 +109,11 @@ public class AdminController : ControllerBase
             return BadRequest(new { message = "Failed to update user", errors = result.Errors });
         }
 
-        _logger.LogInformation("Admin forced password change for user {Email}", model.Email);
+        _logger.LogInformation("Admin forced password change for user {Email}", SanitizeForLog(model.Email));
 
         return Ok(new 
         { 
-            message = $"Password changed successfully",
+            message = "Password changed successfully",
             email = user.Email
         });
     }
@@ -131,7 +148,10 @@ public class AdminController : ControllerBase
             return BadRequest(new { message = "Failed to remove role", errors = result.Errors });
         }
 
-        _logger.LogInformation("Admin removed role {Role} from user {Email}", model.Role, model.Email);
+        _logger.LogInformation(
+            "Admin removed role {Role} from user {Email}",
+            SanitizeForLog(model.Role),
+            SanitizeForLog(model.Email));
 
         var roles = await _userManager.GetRolesAsync(user);
         
@@ -163,5 +183,10 @@ public class AdminController : ControllerBase
         }
 
         return Ok(adminList);
+    }
+
+    private static string SanitizeForLog(string? value)
+    {
+        return value?.Replace("\r", string.Empty).Replace("\n", string.Empty) ?? string.Empty;
     }
 }
