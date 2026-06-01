@@ -18,13 +18,20 @@ namespace TemplateJwtProject.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "9.0.16")
+<<<<<<< Updated upstream
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
+=======
+                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+
+            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+>>>>>>> Stashed changes
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
+<<<<<<< Updated upstream
                         .HasColumnType("varchar(255)");
 
                     b.Property<string>("ConcurrencyStamp")
@@ -38,12 +45,32 @@ namespace TemplateJwtProject.Migrations
                     b.Property<string>("NormalizedName")
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
+=======
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("NormalizedName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+>>>>>>> Stashed changes
 
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedName")
                         .IsUnique()
+<<<<<<< Updated upstream
                         .HasDatabaseName("RoleNameIndex");
+=======
+                        .HasDatabaseName("RoleNameIndex")
+                        .HasFilter("[NormalizedName] IS NOT NULL");
+>>>>>>> Stashed changes
 
                     b.ToTable("AspNetRoles", (string)null);
                 });
@@ -54,6 +81,7 @@ namespace TemplateJwtProject.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
+<<<<<<< Updated upstream
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("ClaimType")
@@ -65,6 +93,19 @@ namespace TemplateJwtProject.Migrations
                     b.Property<string>("RoleId")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
+=======
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RoleId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+>>>>>>> Stashed changes
 
                     b.HasKey("Id");
 
@@ -79,6 +120,7 @@ namespace TemplateJwtProject.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
+<<<<<<< Updated upstream
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("ClaimType")
@@ -90,6 +132,19 @@ namespace TemplateJwtProject.Migrations
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
+=======
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+>>>>>>> Stashed changes
 
                     b.HasKey("Id");
 
@@ -101,6 +156,7 @@ namespace TemplateJwtProject.Migrations
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
                     b.Property<string>("LoginProvider")
+<<<<<<< Updated upstream
                         .HasColumnType("varchar(255)");
 
                     b.Property<string>("ProviderKey")
@@ -112,6 +168,19 @@ namespace TemplateJwtProject.Migrations
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
+=======
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ProviderKey")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ProviderDisplayName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+>>>>>>> Stashed changes
 
                     b.HasKey("LoginProvider", "ProviderKey");
 
@@ -123,10 +192,17 @@ namespace TemplateJwtProject.Migrations
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<string>", b =>
                 {
                     b.Property<string>("UserId")
+<<<<<<< Updated upstream
                         .HasColumnType("varchar(255)");
 
                     b.Property<string>("RoleId")
                         .HasColumnType("varchar(255)");
+=======
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("RoleId")
+                        .HasColumnType("nvarchar(450)");
+>>>>>>> Stashed changes
 
                     b.HasKey("UserId", "RoleId");
 
@@ -138,6 +214,7 @@ namespace TemplateJwtProject.Migrations
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
                     b.Property<string>("UserId")
+<<<<<<< Updated upstream
                         .HasColumnType("varchar(255)");
 
                     b.Property<string>("LoginProvider")
@@ -148,6 +225,18 @@ namespace TemplateJwtProject.Migrations
 
                     b.Property<string>("Value")
                         .HasColumnType("longtext");
+=======
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("nvarchar(max)");
+>>>>>>> Stashed changes
 
                     b.HasKey("UserId", "LoginProvider", "Name");
 
@@ -157,13 +246,18 @@ namespace TemplateJwtProject.Migrations
             modelBuilder.Entity("TemplateJwtProject.Models.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
+<<<<<<< Updated upstream
                         .HasColumnType("varchar(255)");
+=======
+                        .HasColumnType("nvarchar(450)");
+>>>>>>> Stashed changes
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
+<<<<<<< Updated upstream
                         .HasColumnType("longtext");
 
                     b.Property<string>("Email")
@@ -208,6 +302,52 @@ namespace TemplateJwtProject.Migrations
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
+=======
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("LockoutEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("NormalizedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("NormalizedUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("PasswordChanged")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+>>>>>>> Stashed changes
 
                     b.HasKey("Id");
 
@@ -216,7 +356,12 @@ namespace TemplateJwtProject.Migrations
 
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
+<<<<<<< Updated upstream
                         .HasDatabaseName("UserNameIndex");
+=======
+                        .HasDatabaseName("UserNameIndex")
+                        .HasFilter("[NormalizedUserName] IS NOT NULL");
+>>>>>>> Stashed changes
 
                     b.ToTable("AspNetUsers", (string)null);
                 });
@@ -227,17 +372,29 @@ namespace TemplateJwtProject.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
+<<<<<<< Updated upstream
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+=======
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+>>>>>>> Stashed changes
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
+<<<<<<< Updated upstream
                         .HasColumnType("varchar(500)");
+=======
+                        .HasColumnType("nvarchar(500)");
+>>>>>>> Stashed changes
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
+<<<<<<< Updated upstream
                         .HasColumnType("varchar(100)");
+=======
+                        .HasColumnType("nvarchar(100)");
+>>>>>>> Stashed changes
 
                     b.HasKey("Id");
 
@@ -267,7 +424,11 @@ namespace TemplateJwtProject.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
+<<<<<<< Updated upstream
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+=======
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+>>>>>>> Stashed changes
 
                     b.Property<int>("BuildingId")
                         .HasColumnType("int");
@@ -275,7 +436,11 @@ namespace TemplateJwtProject.Migrations
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(1000)
+<<<<<<< Updated upstream
                         .HasColumnType("varchar(1000)");
+=======
+                        .HasColumnType("nvarchar(1000)");
+>>>>>>> Stashed changes
 
                     b.Property<int>("Floor")
                         .HasColumnType("int");
@@ -283,6 +448,7 @@ namespace TemplateJwtProject.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
+<<<<<<< Updated upstream
                         .HasColumnType("varchar(100)");
 
                     b.Property<double>("XCoordinate")
@@ -290,6 +456,15 @@ namespace TemplateJwtProject.Migrations
 
                     b.Property<double>("YCoordinate")
                         .HasColumnType("double");
+=======
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<double>("XCoordinate")
+                        .HasColumnType("float");
+
+                    b.Property<double>("YCoordinate")
+                        .HasColumnType("float");
+>>>>>>> Stashed changes
 
                     b.HasKey("Id");
 
@@ -338,6 +513,7 @@ namespace TemplateJwtProject.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
+<<<<<<< Updated upstream
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
@@ -362,6 +538,32 @@ namespace TemplateJwtProject.Migrations
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
+=======
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReasonRevoked")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReplacedByToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+>>>>>>> Stashed changes
 
                     b.HasKey("Id");
 
@@ -379,12 +581,20 @@ namespace TemplateJwtProject.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
+<<<<<<< Updated upstream
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+=======
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+>>>>>>> Stashed changes
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(1000)
+<<<<<<< Updated upstream
                         .HasColumnType("varchar(1000)");
+=======
+                        .HasColumnType("nvarchar(1000)");
+>>>>>>> Stashed changes
 
                     b.Property<int>("EstimatedTimeMinutes")
                         .HasColumnType("int");
@@ -392,7 +602,11 @@ namespace TemplateJwtProject.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
+<<<<<<< Updated upstream
                         .HasColumnType("varchar(100)");
+=======
+                        .HasColumnType("nvarchar(100)");
+>>>>>>> Stashed changes
 
                     b.HasKey("Id");
 
@@ -428,7 +642,11 @@ namespace TemplateJwtProject.Migrations
 
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
+<<<<<<< Updated upstream
                         .HasColumnType("varchar(500)");
+=======
+                        .HasColumnType("nvarchar(500)");
+>>>>>>> Stashed changes
 
                     b.Property<int>("Order")
                         .HasColumnType("int");

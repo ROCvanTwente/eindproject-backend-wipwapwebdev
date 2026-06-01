@@ -12,7 +12,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 // Database configuratie
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.EnableRetryOnFailure()));
 
 // Identity configuratie
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -83,12 +85,12 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     await RoleInitializer.InitializeAsync(services);
-    
+
     // Seed admin user
     var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
     var adminEmail = "admin@example.com";
     var adminUser = await userManager.FindByEmailAsync(adminEmail);
-    
+
     if (adminUser == null)
     {
         adminUser = new ApplicationUser
@@ -97,9 +99,9 @@ using (var scope = app.Services.CreateScope())
             Email = adminEmail,
             EmailConfirmed = true
         };
-        
+
         var result = await userManager.CreateAsync(adminUser, "Admin123!");
-        
+
         if (result.Succeeded)
         {
             await userManager.AddToRoleAsync(adminUser, Roles.Admin);
@@ -118,12 +120,6 @@ using (var scope = app.Services.CreateScope())
     {
         Console.WriteLine($"✓ Admin account already exists: {adminEmail}");
     }
-}
-// Initialiseer rollen
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    await RoleInitializer.InitializeAsync(services);
 }
 
 // Configure the HTTP request pipeline.
