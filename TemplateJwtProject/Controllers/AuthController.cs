@@ -35,8 +35,8 @@ public class AuthController : ControllerBase
         _logger = logger;
     }
 
+    [Authorize]
     [HttpPost("register")]
-    // [Authorize(Roles = Roles.Admin)]
     public async Task<IActionResult> Register([FromBody] RegisterDto model)
     {
         if (!ModelState.IsValid)
