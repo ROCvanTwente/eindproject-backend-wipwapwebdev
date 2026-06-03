@@ -5,6 +5,7 @@ using TemplateJwtProject.Constants;
 using TemplateJwtProject.Data;
 using TemplateJwtProject.Models;
 using TemplateJwtProject.Models.DTOs;
+using TemplateJwtProject.Utilities;
 
 namespace TemplateJwtProject.Controllers;
 
@@ -14,10 +15,12 @@ namespace TemplateJwtProject.Controllers;
 public class BuildingController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly ILogger<BuildingController> _logger;
 
-    public BuildingController(AppDbContext context)
+    public BuildingController(AppDbContext context, ILogger<BuildingController> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -76,6 +79,10 @@ public class BuildingController : ControllerBase
         _context.Buildings.Add(entity);
         await _context.SaveChangesAsync();
 
+        _logger.LogInformation("Building created: {BuildingId} - {BuildingName}", 
+            entity.Id, 
+            LoggingUtilities.SanitizeForLog(entity.Name));
+
         var response = new BuildingResponseDto
         {
             Id = entity.Id,
@@ -100,10 +107,16 @@ public class BuildingController : ControllerBase
             return NotFound(new { message = "Building not found" });
         }
 
+        var oldName = entity.Name;
         entity.Name = dto.Name;
         entity.Description = dto.Description;
 
         await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Building updated: {BuildingId} - renamed from {OldName} to {NewName}", 
+            entity.Id, 
+            LoggingUtilities.SanitizeForLog(oldName), 
+            LoggingUtilities.SanitizeForLog(entity.Name));
 
         return Ok(new BuildingResponseDto
         {
@@ -125,11 +138,16 @@ public class BuildingController : ControllerBase
         var hasLocations = await _context.Locations.AnyAsync(l => l.BuildingId == id);
         if (hasLocations)
         {
+            _logger.LogWarning("Building deletion failed: {BuildingId} has linked locations", id);
             return BadRequest(new { message = "Building cannot be removed because locations are linked to it" });
         }
 
         _context.Buildings.Remove(entity);
         await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Building deleted: {BuildingId} - {BuildingName}", 
+            id, 
+            LoggingUtilities.SanitizeForLog(entity.Name));
 
         return NoContent();
     }

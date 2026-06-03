@@ -7,6 +7,7 @@ using TemplateJwtProject.Data;
 using TemplateJwtProject.Models;
 using TemplateJwtProject.Services;
 using TemplateJwtProject.Constants;
+using TemplateJwtProject.Utilities;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -84,6 +85,10 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    
+    logger.LogInformation("Initializing application roles and admin user");
+    
     await RoleInitializer.InitializeAsync(services);
 
     // Seed admin user
@@ -105,20 +110,18 @@ using (var scope = app.Services.CreateScope())
         if (result.Succeeded)
         {
             await userManager.AddToRoleAsync(adminUser, Roles.Admin);
-            Console.WriteLine($"✓ Admin account created: {adminEmail}");
+            logger.LogInformation("Admin account created: {AdminEmail}", LoggingUtilities.SanitizeForLog(adminEmail));
         }
         else
         {
-            Console.WriteLine($"✗ Failed to create admin account");
-            foreach (var error in result.Errors)
-            {
-                Console.WriteLine($"  Error: {error.Description}");
-            }
+            logger.LogError("Failed to create admin account for {AdminEmail}. Errors: {Errors}", 
+                LoggingUtilities.SanitizeForLog(adminEmail),
+                string.Join("; ", result.Errors.Select(e => LoggingUtilities.SanitizeForLog(e.Description))));
         }
     }
     else
     {
-        Console.WriteLine($"✓ Admin account already exists: {adminEmail}");
+        logger.LogInformation("Admin account already exists: {AdminEmail}", LoggingUtilities.SanitizeForLog(adminEmail));
     }
 }
 

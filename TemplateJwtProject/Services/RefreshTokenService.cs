@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using TemplateJwtProject.Data;
 using TemplateJwtProject.Models;
+using TemplateJwtProject.Utilities;
 
 namespace TemplateJwtProject.Services;
 
@@ -18,11 +19,13 @@ public class RefreshTokenService : IRefreshTokenService
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<RefreshTokenService> _logger;
 
-    public RefreshTokenService(AppDbContext context, IConfiguration configuration)
+    public RefreshTokenService(AppDbContext context, IConfiguration configuration, ILogger<RefreshTokenService> logger)
     {
         _context = context;
         _configuration = configuration;
+        _logger = logger;
     }
 
     public async Task<RefreshToken> GenerateRefreshTokenAsync(string userId)
@@ -41,6 +44,9 @@ public class RefreshTokenService : IRefreshTokenService
         _context.RefreshTokens.Add(refreshToken);
         await _context.SaveChangesAsync();
 
+        _logger.LogDebug("Refresh token generated for user {UserId}, expires in {ExpiryDays} days", 
+            LoggingUtilities.SanitizeForLog(userId), expiryInDays);
+
         return refreshToken;
     }
 
@@ -50,8 +56,16 @@ public class RefreshTokenService : IRefreshTokenService
             .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.Token == token);
 
-        if (refreshToken == null || !refreshToken.IsActive)
+        if (refreshToken == null)
         {
+            _logger.LogWarning("Refresh token validation failed: token not found");
+            return null;
+        }
+
+        if (!refreshToken.IsActive)
+        {
+            var reason = refreshToken.IsRevoked ? "revoked" : "expired";
+            _logger.LogWarning("Refresh token validation failed: token is {Reason}", reason);
             return null;
         }
 
@@ -63,12 +77,24 @@ public class RefreshTokenService : IRefreshTokenService
         var refreshToken = await _context.RefreshTokens
             .FirstOrDefaultAsync(rt => rt.Token == token);
 
-        if (refreshToken != null && refreshToken.IsActive)
+        if (refreshToken == null)
         {
-            refreshToken.RevokedAt = DateTime.UtcNow;
-            refreshToken.ReasonRevoked = reason;
-            await _context.SaveChangesAsync();
+            _logger.LogWarning("Revoke refresh token failed: token not found");
+            return;
         }
+
+        if (!refreshToken.IsActive)
+        {
+            _logger.LogWarning("Revoke refresh token failed: token is already revoked or expired");
+            return;
+        }
+
+        refreshToken.RevokedAt = DateTime.UtcNow;
+        refreshToken.ReasonRevoked = LoggingUtilities.SanitizeForLog(reason);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Refresh token revoked. Reason: {Reason}", 
+            LoggingUtilities.SanitizeForLog(reason));
     }
 
     public async Task RevokeAllUserRefreshTokensAsync(string userId)
@@ -77,6 +103,13 @@ public class RefreshTokenService : IRefreshTokenService
             .Where(rt => rt.UserId == userId && rt.RevokedAt == null && rt.ExpiresAt > DateTime.UtcNow)
             .ToListAsync();
 
+        if (activeTokens.Count == 0)
+        {
+            _logger.LogDebug("No active refresh tokens to revoke for user {UserId}", 
+                LoggingUtilities.SanitizeForLog(userId));
+            return;
+        }
+
         foreach (var token in activeTokens)
         {
             token.RevokedAt = DateTime.UtcNow;
@@ -84,6 +117,10 @@ public class RefreshTokenService : IRefreshTokenService
         }
 
         await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Revoked {TokenCount} refresh tokens for user {UserId} (logout from all devices)", 
+            activeTokens.Count, 
+            LoggingUtilities.SanitizeForLog(userId));
     }
 
     public async Task CleanupExpiredTokensAsync()
@@ -92,8 +129,17 @@ public class RefreshTokenService : IRefreshTokenService
             .Where(rt => rt.ExpiresAt < DateTime.UtcNow || rt.RevokedAt != null)
             .ToListAsync();
 
+        if (expiredTokens.Count == 0)
+        {
+            _logger.LogDebug("No expired or revoked refresh tokens to clean up");
+            return;
+        }
+
         _context.RefreshTokens.RemoveRange(expiredTokens);
         await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Cleanup: removed {ExpiredTokenCount} expired or revoked refresh tokens", 
+            expiredTokens.Count);
     }
 
     private static string GenerateSecureToken()
