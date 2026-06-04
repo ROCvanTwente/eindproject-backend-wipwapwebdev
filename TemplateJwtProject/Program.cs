@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using TemplateJwtProject.Data;
 using TemplateJwtProject.Models;
@@ -147,5 +148,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Add SQLite3 logging
+app.Services.GetRequiredService<ILoggerFactory>().AddConsole(minLevel: LogLevel.Debug);
 
 app.Run();
