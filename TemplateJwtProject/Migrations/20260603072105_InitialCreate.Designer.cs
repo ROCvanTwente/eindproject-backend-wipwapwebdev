@@ -12,7 +12,7 @@ using TemplateJwtProject.Data;
 namespace TemplateJwtProject.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260601064508_InitialCreate")]
+    [Migration("20260603072105_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -236,8 +236,8 @@ namespace TemplateJwtProject.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(5000)
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -279,8 +279,8 @@ namespace TemplateJwtProject.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
+                        .HasMaxLength(5000)
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Floor")
                         .HasColumnType("int");
