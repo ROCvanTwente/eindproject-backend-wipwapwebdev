@@ -1,22 +1,27 @@
+using System;
+using System.Linq;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using TemplateJwtProject.Data;
 using TemplateJwtProject.Models;
 using TemplateJwtProject.Services;
 using TemplateJwtProject.Constants;
+using TemplateJwtProject.Utilities;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-// Database configuratie
+// Database configuration
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sqlOptions => sqlOptions.EnableRetryOnFailure()));
 
-// Identity configuratie
+// Identity configuration
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     // Password settings
@@ -25,14 +30,14 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     options.Password.RequireUppercase = true;
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequiredLength = 6;
-    
+
     // User settings
     options.User.RequireUniqueEmail = true;
 })
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-// JWT Authentication configuratie
+// JWT Authentication configuration
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured");
 
@@ -56,7 +61,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// CORS configuratie
+// CORS configuration
 var corsSettings = builder.Configuration.GetSection("CorsSettings");
 var allowedOrigins = corsSettings.GetSection("AllowedOrigins").Get<string[]>() ?? new[] { "http://localhost:1234", "http://localhost:5173" };
 
@@ -76,6 +81,7 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
 builder.Services.AddControllers();
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
@@ -84,11 +90,17 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    
+    logger.LogInformation("Initializing application roles and admin user");
+    
     await RoleInitializer.InitializeAsync(services);
 
     // Seed admin user
     var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-    var adminEmail = "admin@example.com";
+    var adminEmail = Environment.GetEnvironmentVariable("ADMIN_EMAIL") ?? builder.Configuration["AppSettings:AdminEmail"] ?? "default_email@example.com";
+    var adminPassword = Environment.GetEnvironmentVariable("ADMIN_PASSWORD") ?? builder.Configuration["AppSettings:AdminPassword"] ?? "Admin123!";
+
     var adminUser = await userManager.FindByEmailAsync(adminEmail);
 
     if (adminUser == null)
@@ -100,25 +112,23 @@ using (var scope = app.Services.CreateScope())
             EmailConfirmed = true
         };
 
-        var result = await userManager.CreateAsync(adminUser, "Admin123!");
+        var result = await userManager.CreateAsync(adminUser, adminPassword); // Use the password from environment variable or default
 
         if (result.Succeeded)
         {
             await userManager.AddToRoleAsync(adminUser, Roles.Admin);
-            Console.WriteLine($"✓ Admin account created: {adminEmail}");
+            logger.LogInformation("Admin account created: {AdminEmail}", LoggingUtilities.SanitizeForLog(adminEmail));
         }
         else
         {
-            Console.WriteLine($"✗ Failed to create admin account");
-            foreach (var error in result.Errors)
-            {
-                Console.WriteLine($"  Error: {error.Description}");
-            }
+            logger.LogError("Failed to create admin account for {AdminEmail}. Errors: {Errors}", 
+                LoggingUtilities.SanitizeForLog(adminEmail),
+                string.Join("; ", result.Errors.Select(e => LoggingUtilities.SanitizeForLog(e.Description))));
         }
     }
     else
     {
-        Console.WriteLine($"✓ Admin account already exists: {adminEmail}");
+        logger.LogInformation("Admin account already exists: {AdminEmail}", LoggingUtilities.SanitizeForLog(adminEmail));
     }
 }
 
@@ -130,7 +140,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// CORS middleware (voor Authentication en Authorization!)
+// CORS middleware (for Authentication and Authorization!)
 app.UseCors("DefaultCorsPolicy");
 
 app.UseAuthentication();

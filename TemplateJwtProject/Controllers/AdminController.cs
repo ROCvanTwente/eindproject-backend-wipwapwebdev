@@ -33,17 +33,28 @@ public class AdminController : ControllerBase
         var user = await _userManager.FindByEmailAsync(model.Email);
         if (user == null)
         {
+            _logger.LogWarning(
+                "Assign role failed: user not found for email {Email}",
+                LoggingUtilities.SanitizeForLog(model.Email));
             return NotFound(new { message = "User not found" });
         }
 
         // Valideer of de rol bestaat
         if (model.Role != Roles.Admin)
         {
+            _logger.LogWarning(
+                "Assign role failed: invalid role requested {Role} (valid role is: {ValidRole})",
+                LoggingUtilities.SanitizeForLog(model.Role),
+                Roles.Admin);
             return BadRequest(new { message = $"Invalid role. Valid role is: {Roles.Admin}" });
         }
 
         if (await _userManager.IsInRoleAsync(user, model.Role))
         {
+            _logger.LogWarning(
+                "Assign role failed: user {Email} already has role {Role}",
+                LoggingUtilities.SanitizeForLog(model.Email),
+                LoggingUtilities.SanitizeForLog(model.Role));
             return BadRequest(new { message = $"User already has the {model.Role} role" });
         }
 
@@ -51,6 +62,11 @@ public class AdminController : ControllerBase
 
         if (!result.Succeeded)
         {
+            _logger.LogError(
+                "Assign role failed: unable to add role {Role} to user {Email}. Errors: {Errors}",
+                LoggingUtilities.SanitizeForLog(model.Role),
+                LoggingUtilities.SanitizeForLog(model.Email),
+                string.Join("; ", result.Errors.Select(e => LoggingUtilities.SanitizeForLog(e.Description))));
             return BadRequest(new { message = "Failed to assign role", errors = result.Errors });
         }
 
@@ -83,7 +99,9 @@ public class AdminController : ControllerBase
         var user = await _userManager.FindByEmailAsync(model.Email);
         if (user == null)
         {
-            _logger.LogWarning("Force password change failed: user not found");
+            _logger.LogWarning(
+                "Force password change failed: user not found for email {Email}",
+                LoggingUtilities.SanitizeForLog(model.Email));
             return NotFound(new { message = "User not found" });
         }
 
@@ -92,7 +110,10 @@ public class AdminController : ControllerBase
             var removePasswordResult = await _userManager.RemovePasswordAsync(user);
             if (!removePasswordResult.Succeeded)
             {
-                _logger.LogWarning("Force password change failed while removing old password");
+                _logger.LogError(
+                    "Force password change failed: unable to remove old password for user {Email}. Errors: {Errors}",
+                    LoggingUtilities.SanitizeForLog(model.Email),
+                    string.Join("; ", removePasswordResult.Errors.Select(e => LoggingUtilities.SanitizeForLog(e.Description))));
                 return BadRequest(new { message = "Failed to remove old password", errors = removePasswordResult.Errors });
             }
         }
@@ -100,7 +121,10 @@ public class AdminController : ControllerBase
         var addPasswordResult = await _userManager.AddPasswordAsync(user, model.NewPassword);
         if (!addPasswordResult.Succeeded)
         {
-            _logger.LogWarning("Force password change failed while setting new password");
+            _logger.LogError(
+                "Force password change failed: unable to set new password for user {Email}. Errors: {Errors}",
+                LoggingUtilities.SanitizeForLog(model.Email),
+                string.Join("; ", addPasswordResult.Errors.Select(e => LoggingUtilities.SanitizeForLog(e.Description))));
             return BadRequest(new { message = "Failed to set new password", errors = addPasswordResult.Errors });
         }
 
@@ -109,7 +133,10 @@ public class AdminController : ControllerBase
 
         if (!updateResult.Succeeded)
         {
-            _logger.LogWarning("Force password change failed while updating user flag");
+            _logger.LogError(
+                "Force password change failed: unable to update user flag for {Email}. Errors: {Errors}",
+                LoggingUtilities.SanitizeForLog(model.Email),
+                string.Join("; ", updateResult.Errors.Select(e => LoggingUtilities.SanitizeForLog(e.Description))));
             return BadRequest(new { message = "Failed to update user", errors = updateResult.Errors });
         }
 
@@ -134,16 +161,27 @@ public class AdminController : ControllerBase
         var user = await _userManager.FindByEmailAsync(model.Email);
         if (user == null)
         {
+            _logger.LogWarning(
+                "Remove role failed: user not found for email {Email}",
+                LoggingUtilities.SanitizeForLog(model.Email));
             return NotFound(new { message = "User not found" });
         }
 
         if (model.Role != Roles.Admin)
         {
+            _logger.LogWarning(
+                "Remove role failed: invalid role requested {Role} (valid role is: {ValidRole})",
+                LoggingUtilities.SanitizeForLog(model.Role),
+                Roles.Admin);
             return BadRequest(new { message = $"Invalid role. Valid role is: {Roles.Admin}" });
         }
 
         if (!await _userManager.IsInRoleAsync(user, model.Role))
         {
+            _logger.LogWarning(
+                "Remove role failed: user {Email} does not have role {Role}",
+                LoggingUtilities.SanitizeForLog(model.Email),
+                LoggingUtilities.SanitizeForLog(model.Role));
             return BadRequest(new { message = $"User does not have the {model.Role} role" });
         }
 
@@ -151,6 +189,11 @@ public class AdminController : ControllerBase
         
         if (!result.Succeeded)
         {
+            _logger.LogError(
+                "Remove role failed: unable to remove role {Role} from user {Email}. Errors: {Errors}",
+                LoggingUtilities.SanitizeForLog(model.Role),
+                LoggingUtilities.SanitizeForLog(model.Email),
+                string.Join("; ", result.Errors.Select(e => LoggingUtilities.SanitizeForLog(e.Description))));
             return BadRequest(new { message = "Failed to remove role", errors = result.Errors });
         }
 
@@ -172,7 +215,11 @@ public class AdminController : ControllerBase
     [HttpGet("admins")]
     public async Task<IActionResult> GetAllAdmins()
     {
+        _logger.LogInformation("Admin list requested");
+
         var admins = await _userManager.GetUsersInRoleAsync(Roles.Admin);
+
+        _logger.LogInformation("Retrieved {AdminCount} admins", admins.Count);
 
         var adminList = new List<object>();
 

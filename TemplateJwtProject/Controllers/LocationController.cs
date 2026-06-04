@@ -5,6 +5,7 @@ using TemplateJwtProject.Constants;
 using TemplateJwtProject.Data;
 using TemplateJwtProject.Models;
 using TemplateJwtProject.Models.DTOs;
+using TemplateJwtProject.Utilities;
 
 namespace TemplateJwtProject.Controllers;
 
@@ -13,10 +14,12 @@ namespace TemplateJwtProject.Controllers;
 public class LocationController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly ILogger<LocationController> _logger;
 
-    public LocationController(AppDbContext context)
+    public LocationController(AppDbContext context, ILogger<LocationController> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -69,6 +72,7 @@ public class LocationController : ControllerBase
         var buildingExists = await _context.Buildings.AnyAsync(b => b.Id == dto.BuildingId);
         if (!buildingExists)
         {
+            _logger.LogWarning("Location creation failed: building {BuildingId} does not exist", dto.BuildingId);
             return BadRequest(new { message = "Building does not exist" });
         }
 
@@ -84,6 +88,11 @@ public class LocationController : ControllerBase
 
         _context.Locations.Add(entity);
         await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Location created: {LocationId} - {LocationName} in building {BuildingId}", 
+            entity.Id, 
+            LoggingUtilities.SanitizeForLog(entity.Name), 
+            dto.BuildingId);
 
         var created = await _context.Locations
             .AsNoTracking()
@@ -111,9 +120,13 @@ public class LocationController : ControllerBase
         var buildingExists = await _context.Buildings.AnyAsync(b => b.Id == dto.BuildingId);
         if (!buildingExists)
         {
+            _logger.LogWarning("Location update failed: building {BuildingId} does not exist", dto.BuildingId);
             return BadRequest(new { message = "Building does not exist" });
         }
 
+        var oldName = entity.Name;
+        var oldBuildingId = entity.BuildingId;
+        
         entity.Name = dto.Name;
         entity.Description = dto.Description;
         entity.Floor = dto.Floor;
@@ -122,6 +135,13 @@ public class LocationController : ControllerBase
         entity.BuildingId = dto.BuildingId;
 
         await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Location updated: {LocationId} - renamed from {OldName} to {NewName}, moved from building {OldBuildingId} to {NewBuildingId}", 
+            entity.Id, 
+            LoggingUtilities.SanitizeForLog(oldName), 
+            LoggingUtilities.SanitizeForLog(entity.Name),
+            oldBuildingId,
+            dto.BuildingId);
 
         var updated = await _context.Locations
             .AsNoTracking()
@@ -144,11 +164,16 @@ public class LocationController : ControllerBase
         var hasRoutes = await _context.RouteLocations.AnyAsync(rl => rl.LocationId == id);
         if (hasRoutes)
         {
+            _logger.LogWarning("Location deletion failed: {LocationId} has linked routes", id);
             return BadRequest(new { message = "Location cannot be removed because routes are linked to it" });
         }
 
         _context.Locations.Remove(entity);
         await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Location deleted: {LocationId} - {LocationName}", 
+            id, 
+            LoggingUtilities.SanitizeForLog(entity.Name));
 
         return NoContent();
     }

@@ -5,6 +5,7 @@ using TemplateJwtProject.Constants;
 using TemplateJwtProject.Models;
 using TemplateJwtProject.Models.DTOs;
 using TemplateJwtProject.Services;
+using TemplateJwtProject.Utilities;
 
 namespace TemplateJwtProject.Controllers;
 
@@ -64,7 +65,7 @@ public class AuthController : ControllerBase
 
         _logger.LogInformation(
             "User {Email} created successfully with role {Role}",
-            SanitizeForLog(model.Email),
+            LoggingUtilities.SanitizeForLog(model.Email),
             Roles.Admin);
 
         var token = await _jwtService.GenerateTokenAsync(user);
@@ -88,17 +89,17 @@ public class AuthController : ControllerBase
             return BadRequest(ModelState);
         //
         var user = await _userManager.FindByEmailAsync(model.Email);
-        // if (user == null)
-        // {
-        //     return Unauthorized(new { message = "Invalid email or password" });
-        // }
-        //
-        // var result = await _signInManager.CheckPasswordSignInAsync(user, model.Password, false);
-        //
-        // if (!result.Succeeded)
-        // {
-        //     return Unauthorized(new { message = "Invalid email or password" });
-        // }
+        if (user == null)
+        {
+            return Unauthorized(new { message = "Invalid email or password" });
+        }
+        
+        var result = await _signInManager.CheckPasswordSignInAsync(user, model.Password, false);
+        
+        if (!result.Succeeded)
+        {
+            return Unauthorized(new { message = "Invalid email or password" });
+        }
 
         var token = await _jwtService.GenerateTokenAsync(user);
         var refreshToken = await _refreshTokenService.GenerateRefreshTokenAsync(user.Id);
@@ -106,7 +107,7 @@ public class AuthController : ControllerBase
 
         _logger.LogInformation(
             "User {Email} logged in successfully with roles: {Roles}",
-            SanitizeForLog(model.Email),
+            LoggingUtilities.SanitizeForLog(model.Email),
             string.Join(", ", roles));
 
         return Ok(new AuthResponseDto
@@ -145,7 +146,7 @@ public class AuthController : ControllerBase
         var newRefreshToken = await _refreshTokenService.GenerateRefreshTokenAsync(user.Id);
         var roles = await _userManager.GetRolesAsync(user);
 
-        _logger.LogInformation("Refresh token used for user {Email}", SanitizeForLog(user.Email));
+        _logger.LogInformation("Refresh token used for user {Email}", LoggingUtilities.SanitizeForLog(user.Email));
 
         return Ok(new AuthResponseDto
         {
@@ -184,13 +185,8 @@ public class AuthController : ControllerBase
 
         await _refreshTokenService.RevokeAllUserRefreshTokensAsync(userId);
 
-        _logger.LogInformation("User {UserId} logged out from all devices", SanitizeForLog(userId));
+        _logger.LogInformation("User {UserId} logged out from all devices", LoggingUtilities.SanitizeForLog(userId));
 
         return Ok(new { message = "Logged out from all devices successfully" });
-    }
-
-    private static string SanitizeForLog(string? value)
-    {
-        return value?.Replace("\r", string.Empty).Replace("\n", string.Empty) ?? string.Empty;
     }
 }

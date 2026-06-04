@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using TemplateJwtProject.Constants;
 using TemplateJwtProject.Data;
 using TemplateJwtProject.Models.DTOs;
+using TemplateJwtProject.Utilities;
 using RouteEntity = TemplateJwtProject.Models.Route;
 using RouteLocationEntity = TemplateJwtProject.Models.RouteLocation;
 
@@ -14,10 +15,12 @@ namespace TemplateJwtProject.Controllers;
 public class RouteController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly ILogger<RouteController> _logger;
 
-    public RouteController(AppDbContext context)
+    public RouteController(AppDbContext context, ILogger<RouteController> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -62,6 +65,7 @@ public class RouteController : ControllerBase
         var validationError = ValidateRouteLocations(dto.Locations);
         if (validationError != null)
         {
+            _logger.LogWarning("Route creation failed: validation error in locations");
             return validationError;
         }
 
@@ -69,6 +73,7 @@ public class RouteController : ControllerBase
         var existingLocationCount = await _context.Locations.CountAsync(l => requestedLocationIds.Contains(l.Id));
         if (existingLocationCount != requestedLocationIds.Count)
         {
+            _logger.LogWarning("Route creation failed: one or more locations do not exist");
             return BadRequest(new { message = "One or more locations do not exist" });
         }
 
@@ -87,6 +92,11 @@ public class RouteController : ControllerBase
 
         _context.Routes.Add(route);
         await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Route created: {RouteId} - {RouteName} with {LocationCount} locations", 
+            route.Id, 
+            LoggingUtilities.SanitizeForLog(route.Name),
+            route.RouteLocations.Count);
 
         var createdRoute = await _context.Routes
             .AsNoTracking()
@@ -109,6 +119,7 @@ public class RouteController : ControllerBase
         var validationError = ValidateRouteLocations(dto.Locations);
         if (validationError != null)
         {
+            _logger.LogWarning("Route update failed: validation error in locations for route {RouteId}", id);
             return validationError;
         }
 
@@ -125,8 +136,12 @@ public class RouteController : ControllerBase
         var existingLocationCount = await _context.Locations.CountAsync(l => requestedLocationIds.Contains(l.Id));
         if (existingLocationCount != requestedLocationIds.Count)
         {
+            _logger.LogWarning("Route update failed: one or more locations do not exist for route {RouteId}", id);
             return BadRequest(new { message = "One or more locations do not exist" });
         }
+
+        var oldName = route.Name;
+        var oldLocationCount = route.RouteLocations.Count;
 
         route.Name = dto.Name;
         route.Description = dto.Description;
@@ -143,6 +158,13 @@ public class RouteController : ControllerBase
         }).ToList();
 
         await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Route updated: {RouteId} - renamed from {OldName} to {NewName}, locations changed from {OldLocationCount} to {NewLocationCount}", 
+            id, 
+            LoggingUtilities.SanitizeForLog(oldName), 
+            LoggingUtilities.SanitizeForLog(route.Name),
+            oldLocationCount,
+            route.RouteLocations.Count);
 
         var updatedRoute = await _context.Routes
             .AsNoTracking()
@@ -165,6 +187,10 @@ public class RouteController : ControllerBase
 
         _context.Routes.Remove(route);
         await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Route deleted: {RouteId} - {RouteName}", 
+            id, 
+            LoggingUtilities.SanitizeForLog(route.Name));
 
         return NoContent();
     }
