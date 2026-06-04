@@ -14,7 +14,7 @@ public class RouteLocation
 
     public Location? Location { get; set; }
 
-    [Range(1, 500)]
+    [Range(0, 500)]
     public int Order { get; set; }
 
     [MaxLength(500)]

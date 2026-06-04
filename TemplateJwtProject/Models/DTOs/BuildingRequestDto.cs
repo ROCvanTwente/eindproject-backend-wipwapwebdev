@@ -9,6 +9,6 @@ public class BuildingRequestDto
     public string Name { get; set; } = string.Empty;
 
     [Required]
-    [MaxLength(500)]
+    [MaxLength(5000)]
     public string Description { get; set; } = string.Empty;
 }
