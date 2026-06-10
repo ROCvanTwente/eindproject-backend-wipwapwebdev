@@ -1,0 +1,57 @@
+name: Deploy backend to MonsterASP
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: windows-latest
+    env:
+      MONSTERASP_FTP_SERVER: ${{ secrets.MONSTERASP_FTP_SERVER }}
+      MONSTERASP_FTP_USERNAME: ${{ secrets.MONSTERASP_FTP_USERNAME }}
+      MONSTERASP_FTP_PASSWORD: ${{ secrets.MONSTERASP_FTP_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore TemplateJwtProject/TemplateJwtProject.csproj
+
+      - name: Build
+        run: dotnet build TemplateJwtProject/TemplateJwtProject.csproj --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish TemplateJwtProject/TemplateJwtProject.csproj --configuration Release --no-build --output publish/monsterasp
+
+      - name: Check MonsterASP FTP secrets
+        shell: pwsh
+        run: |
+          $missing = @()
+          if ($env:MONSTERASP_FTP_SERVER -eq "") { $missing += "MONSTERASP_FTP_SERVER" }
+          if ($env:MONSTERASP_FTP_USERNAME -eq "") { $missing += "MONSTERASP_FTP_USERNAME" }
+          if ($env:MONSTERASP_FTP_PASSWORD -eq "") { $missing += "MONSTERASP_FTP_PASSWORD" }
+
+          if ($missing.Count -gt 0) {
+            Write-Warning "Skipping FTP deploy. Missing GitHub secrets: $($missing -join ', ')"
+          }
+
+      - name: Deploy to MonsterASP
+        if: ${{ env.MONSTERASP_FTP_SERVER != '' && env.MONSTERASP_FTP_USERNAME != '' && env.MONSTERASP_FTP_PASSWORD != '' }}
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ env.MONSTERASP_FTP_SERVER }}
+          username: ${{ env.MONSTERASP_FTP_USERNAME }}
+          password: ${{ env.MONSTERASP_FTP_PASSWORD }}
+          protocol: ftp
+          local-dir: publish/monsterasp/
+          server-dir: /wwwroot/
