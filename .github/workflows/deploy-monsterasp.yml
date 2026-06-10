@@ -52,59 +52,18 @@ jobs:
           $ErrorActionPreference = "Stop"
 
           $localRoot = (Resolve-Path "publish/monsterasp").Path
-          $ftpRoot = "ftp://$env:MONSTERASP_FTP_SERVER/wwwroot"
-          $credential = [System.Net.NetworkCredential]::new(
-            $env:MONSTERASP_FTP_USERNAME,
-            $env:MONSTERASP_FTP_PASSWORD
-          )
-
-          function Invoke-FtpRequest {
-            param(
-              [Parameter(Mandatory = $true)][string]$Uri,
-              [Parameter(Mandatory = $true)][string]$Method,
-              [byte[]]$Body
-            )
-
-            $request = [System.Net.FtpWebRequest]::Create($Uri)
-            $request.Method = $Method
-            $request.Credentials = $credential
-            $request.UseBinary = $true
-            $request.UsePassive = $true
-            $request.KeepAlive = $false
-
-            if ($null -ne $Body) {
-              $request.ContentLength = $Body.Length
-              $stream = $request.GetRequestStream()
-              try {
-                $stream.Write($Body, 0, $Body.Length)
-              }
-              finally {
-                $stream.Dispose()
-              }
-            }
-
-            $response = $request.GetResponse()
-            $response.Dispose()
-          }
+          $ftpRoot = "ftp://$env:MONSTERASP_FTP_SERVER/wwwroot/"
 
           function ConvertTo-FtpPath {
             param([Parameter(Mandatory = $true)][string]$Path)
             return ($Path -replace "\\", "/").TrimStart("/")
           }
 
-          function Ensure-FtpDirectory {
-            param([Parameter(Mandatory = $true)][string]$RelativeDirectory)
-
-            $current = ""
-            foreach ($part in (ConvertTo-FtpPath $RelativeDirectory).Split("/", [System.StringSplitOptions]::RemoveEmptyEntries)) {
-              $current = if ($current -eq "") { $part } else { "$current/$part" }
-              try {
-                Invoke-FtpRequest -Uri "$ftpRoot/$current" -Method ([System.Net.WebRequestMethods+Ftp]::MakeDirectory)
-              }
-              catch {
-                # MonsterASP returns an FTP error when the directory already exists.
-              }
-            }
+          function ConvertTo-FtpUriPath {
+            param([Parameter(Mandatory = $true)][string]$Path)
+            return ((ConvertTo-FtpPath $Path).Split("/") | ForEach-Object {
+              [System.Uri]::EscapeDataString($_)
+            }) -join "/"
           }
 
           function Upload-FtpFile {
@@ -114,33 +73,12 @@ jobs:
             )
 
             $relativeFtpPath = ConvertTo-FtpPath $RelativePath
-            $relativeDirectory = Split-Path $relativeFtpPath -Parent
-            if ($relativeDirectory) {
-              Ensure-FtpDirectory -RelativeDirectory $relativeDirectory
-            }
-
-            $bytes = [System.IO.File]::ReadAllBytes($LocalPath)
-            Invoke-FtpRequest -Uri "$ftpRoot/$relativeFtpPath" -Method ([System.Net.WebRequestMethods+Ftp]::UploadFile) -Body $bytes
+            $targetUri = "$ftpRoot$(ConvertTo-FtpUriPath $relativeFtpPath)"
+            curl.exe --fail --silent --show-error --ftp-create-dirs --user "$($env:MONSTERASP_FTP_USERNAME):$($env:MONSTERASP_FTP_PASSWORD)" --upload-file "$LocalPath" "$targetUri"
             Write-Host "Uploaded $relativeFtpPath"
           }
 
-          $appOfflineBody = [System.Text.Encoding]::UTF8.GetBytes(
-            "<html><body><h1>Deploying</h1><p>The application is temporarily offline while a new version is deployed.</p></body></html>"
-          )
-
-          try {
-            Invoke-FtpRequest -Uri "$ftpRoot/app_offline.htm" -Method ([System.Net.WebRequestMethods+Ftp]::UploadFile) -Body $appOfflineBody
-
-            Get-ChildItem -Path $localRoot -File -Recurse | ForEach-Object {
-              $relativePath = [System.IO.Path]::GetRelativePath($localRoot, $_.FullName)
-              Upload-FtpFile -LocalPath $_.FullName -RelativePath $relativePath
-            }
-          }
-          finally {
-            try {
-              Invoke-FtpRequest -Uri "$ftpRoot/app_offline.htm" -Method ([System.Net.WebRequestMethods+Ftp]::DeleteFile)
-            }
-            catch {
-              Write-Warning "Could not remove app_offline.htm automatically. Remove it from /wwwroot if the site stays offline."
-            }
+          Get-ChildItem -Path $localRoot -File -Recurse | ForEach-Object {
+            $relativePath = [System.IO.Path]::GetRelativePath($localRoot, $_.FullName)
+            Upload-FtpFile -LocalPath $_.FullName -RelativePath $relativePath
           }
