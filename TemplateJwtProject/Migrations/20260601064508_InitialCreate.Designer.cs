@@ -12,15 +12,15 @@ using TemplateJwtProject.Data;
 namespace TemplateJwtProject.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251118081912_AddRefreshTokens")]
-    partial class AddRefreshTokens
+    [Migration("20260601064508_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.0")
+                .HasAnnotation("ProductVersion", "9.0.16")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -191,6 +191,9 @@ namespace TemplateJwtProject.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<bool>("PasswordChanged")
+                        .HasColumnType("bit");
+
                     b.Property<string>("PasswordHash")
                         .HasColumnType("nvarchar(max)");
 
@@ -221,6 +224,117 @@ namespace TemplateJwtProject.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("TemplateJwtProject.Models.Building", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Buildings");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Description = "Centraal schoolgebouw met receptie en kantoren.",
+                            Name = "Hoofdgebouw"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Description = "Gebouw met technieklokalen en praktijkruimtes.",
+                            Name = "Techniekgebouw"
+                        });
+                });
+
+            modelBuilder.Entity("TemplateJwtProject.Models.Location", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BuildingId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("Floor")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<double>("XCoordinate")
+                        .HasColumnType("float");
+
+                    b.Property<double>("YCoordinate")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BuildingId");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("Locations");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            BuildingId = 1,
+                            Description = "Hoofdreceptie voor bezoekers en studenten.",
+                            Floor = 0,
+                            Name = "Receptie",
+                            XCoordinate = 12.5,
+                            YCoordinate = 8.1999999999999993
+                        },
+                        new
+                        {
+                            Id = 2,
+                            BuildingId = 1,
+                            Description = "Grote ontmoetingsruimte voor evenementen en pauzes.",
+                            Floor = 0,
+                            Name = "Aula",
+                            XCoordinate = 24.100000000000001,
+                            YCoordinate = 14.699999999999999
+                        },
+                        new
+                        {
+                            Id = 3,
+                            BuildingId = 2,
+                            Description = "Praktijklokaal voor technieklessen.",
+                            Floor = 1,
+                            Name = "Praktijklokaal T1",
+                            XCoordinate = 7.4000000000000004,
+                            YCoordinate = 29.300000000000001
+                        });
                 });
 
             modelBuilder.Entity("TemplateJwtProject.Models.RefreshToken", b =>
@@ -262,6 +376,106 @@ namespace TemplateJwtProject.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("RefreshTokens");
+                });
+
+            modelBuilder.Entity("TemplateJwtProject.Models.Route", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("EstimatedTimeMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Routes");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Description = "Route langs de belangrijkste plekken voor bezoekers.",
+                            EstimatedTimeMinutes = 20,
+                            Name = "Open Dag Route"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Description = "Route door de techniekvleugel en praktijklokalen.",
+                            EstimatedTimeMinutes = 15,
+                            Name = "Techniek Route"
+                        });
+                });
+
+            modelBuilder.Entity("TemplateJwtProject.Models.RouteLocation", b =>
+                {
+                    b.Property<int>("RouteId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LocationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.HasKey("RouteId", "LocationId");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("RouteId", "Order")
+                        .IsUnique();
+
+                    b.ToTable("RouteLocations");
+
+                    b.HasData(
+                        new
+                        {
+                            RouteId = 1,
+                            LocationId = 1,
+                            Notes = "Start bij de ingang.",
+                            Order = 1
+                        },
+                        new
+                        {
+                            RouteId = 1,
+                            LocationId = 2,
+                            Notes = "Loop via de centrale hal.",
+                            Order = 2
+                        },
+                        new
+                        {
+                            RouteId = 2,
+                            LocationId = 1,
+                            Notes = "Startpunt voor bezoekers.",
+                            Order = 1
+                        },
+                        new
+                        {
+                            RouteId = 2,
+                            LocationId = 3,
+                            Notes = "Eindpunt in het techniekgebouw.",
+                            Order = 2
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -315,6 +529,17 @@ namespace TemplateJwtProject.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TemplateJwtProject.Models.Location", b =>
+                {
+                    b.HasOne("TemplateJwtProject.Models.Building", "Building")
+                        .WithMany("Locations")
+                        .HasForeignKey("BuildingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Building");
+                });
+
             modelBuilder.Entity("TemplateJwtProject.Models.RefreshToken", b =>
                 {
                     b.HasOne("TemplateJwtProject.Models.ApplicationUser", "User")
@@ -324,6 +549,40 @@ namespace TemplateJwtProject.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TemplateJwtProject.Models.RouteLocation", b =>
+                {
+                    b.HasOne("TemplateJwtProject.Models.Location", "Location")
+                        .WithMany("RouteLocations")
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TemplateJwtProject.Models.Route", "Route")
+                        .WithMany("RouteLocations")
+                        .HasForeignKey("RouteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Location");
+
+                    b.Navigation("Route");
+                });
+
+            modelBuilder.Entity("TemplateJwtProject.Models.Building", b =>
+                {
+                    b.Navigation("Locations");
+                });
+
+            modelBuilder.Entity("TemplateJwtProject.Models.Location", b =>
+                {
+                    b.Navigation("RouteLocations");
+                });
+
+            modelBuilder.Entity("TemplateJwtProject.Models.Route", b =>
+                {
+                    b.Navigation("RouteLocations");
                 });
 #pragma warning restore 612, 618
         }

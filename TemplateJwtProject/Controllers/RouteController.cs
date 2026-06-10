@@ -11,7 +11,6 @@ namespace TemplateJwtProject.Controllers;
 
 [ApiController]
 [Microsoft.AspNetCore.Mvc.Route("api/routes")]
-//[Authorize(Roles = Roles.Admin)]
 public class RouteController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -52,6 +51,7 @@ public class RouteController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize]
     public async Task<ActionResult<RouteResponseDto>> Create([FromBody] RouteRequestDto dto)
     {
         if (!ModelState.IsValid)
@@ -98,6 +98,7 @@ public class RouteController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize]
     public async Task<ActionResult<RouteResponseDto>> Update(int id, [FromBody] RouteRequestDto dto)
     {
         if (!ModelState.IsValid)
@@ -153,6 +154,7 @@ public class RouteController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize]
     public async Task<IActionResult> Delete(int id)
     {
         var route = await _context.Routes.FindAsync(id);

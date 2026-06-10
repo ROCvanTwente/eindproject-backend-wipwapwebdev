@@ -10,7 +10,6 @@ namespace TemplateJwtProject.Controllers;
 
 [ApiController]
 [Microsoft.AspNetCore.Mvc.Route("api/[controller]")]
-//[Authorize(Roles = Roles.Admin)]
 public class LocationController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -59,6 +58,7 @@ public class LocationController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize]
     public async Task<ActionResult<LocationResponseDto>> Create([FromBody] LocationRequestDto dto)
     {
         if (!ModelState.IsValid)
@@ -94,6 +94,7 @@ public class LocationController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize]
     public async Task<ActionResult<LocationResponseDto>> Update(int id, [FromBody] LocationRequestDto dto)
     {
         if (!ModelState.IsValid)
@@ -131,6 +132,7 @@ public class LocationController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize]
     public async Task<IActionResult> Delete(int id)
     {
         var entity = await _context.Locations.FindAsync(id);
