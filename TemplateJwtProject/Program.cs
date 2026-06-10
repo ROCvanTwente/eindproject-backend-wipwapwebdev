@@ -3,10 +3,11 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using TemplateJwtProject.Constants;
 using TemplateJwtProject.Data;
 using TemplateJwtProject.Models;
 using TemplateJwtProject.Services;
-using TemplateJwtProject.Constants;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -23,7 +24,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     options.Password.RequireUppercase = true;
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequiredLength = 6;
-    
+
     // User settings
     options.User.RequireUniqueEmail = true;
 })
@@ -32,7 +33,12 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 
 // JWT Authentication configuratie
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured");
+var secretKey = jwtSettings["SecretKey"];
+
+if (string.IsNullOrWhiteSpace(secretKey))
+{
+    throw new InvalidOperationException("JWT SecretKey is not configured");
+}
 
 builder.Services.AddAuthentication(options =>
 {
@@ -82,48 +88,65 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var dbContext = services.GetRequiredService<AppDbContext>();
+
+    await dbContext.Database.MigrateAsync();
     await RoleInitializer.InitializeAsync(services);
-    
+
     // Seed admin user
     var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-    var adminEmail = "admin@example.com";
-    var adminUser = await userManager.FindByEmailAsync(adminEmail);
-    
-    if (adminUser == null)
+    var adminEmail = builder.Configuration["AdminSeed:Email"];
+    var adminPassword = builder.Configuration["AdminSeed:Password"];
+
+    if (app.Environment.IsDevelopment())
     {
-        adminUser = new ApplicationUser
+        adminEmail ??= "admin@example.com";
+        adminPassword ??= "Admin123!";
+    }
+
+    if (!string.IsNullOrWhiteSpace(adminEmail) && !string.IsNullOrWhiteSpace(adminPassword))
+    {
+        var adminUser = await userManager.FindByEmailAsync(adminEmail);
+
+        if (adminUser == null)
         {
-            UserName = adminEmail,
-            Email = adminEmail,
-            EmailConfirmed = true
-        };
-        
-        var result = await userManager.CreateAsync(adminUser, "Admin123!");
-        
-        if (result.Succeeded)
-        {
-            await userManager.AddToRoleAsync(adminUser, Roles.Admin);
-            Console.WriteLine($"✓ Admin account created: {adminEmail}");
+            adminUser = new ApplicationUser
+            {
+                UserName = adminEmail,
+                Email = adminEmail,
+                EmailConfirmed = true
+            };
+
+            var result = await userManager.CreateAsync(adminUser, adminPassword);
+
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(adminUser, Roles.Admin);
+                Console.WriteLine($"Admin account created: {adminEmail}");
+            }
+            else
+            {
+                Console.WriteLine("Failed to create admin account");
+                foreach (var error in result.Errors)
+                {
+                    Console.WriteLine($"  Error: {error.Description}");
+                }
+            }
         }
         else
         {
-            Console.WriteLine($"✗ Failed to create admin account");
-            foreach (var error in result.Errors)
+            if (!await userManager.IsInRoleAsync(adminUser, Roles.Admin))
             {
-                Console.WriteLine($"  Error: {error.Description}");
+                await userManager.AddToRoleAsync(adminUser, Roles.Admin);
             }
+
+            Console.WriteLine($"Admin account already exists: {adminEmail}");
         }
     }
     else
     {
-        Console.WriteLine($"✓ Admin account already exists: {adminEmail}");
+        Console.WriteLine("Admin seed skipped. Set AdminSeed__Email and AdminSeed__Password to create one.");
     }
-}
-// Initialiseer rollen
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    await RoleInitializer.InitializeAsync(services);
 }
 
 // Configure the HTTP request pipeline.
