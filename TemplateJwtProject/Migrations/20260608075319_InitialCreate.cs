@@ -60,7 +60,7 @@ namespace TemplateJwtProject.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false)
+                    Description = table.Column<string>(type: "nvarchar(max)", maxLength: 5000, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -219,8 +219,9 @@ namespace TemplateJwtProject.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
+                    ImageUrl = table.Column<string>(type: "TEXT", nullable: true),
                     Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", maxLength: 5000, nullable: false),
                     Floor = table.Column<int>(type: "int", nullable: false),
                     XCoordinate = table.Column<double>(type: "float", nullable: false),
                     YCoordinate = table.Column<double>(type: "float", nullable: false),
@@ -283,12 +284,12 @@ namespace TemplateJwtProject.Migrations
 
             migrationBuilder.InsertData(
                 table: "Locations",
-                columns: new[] { "Id", "BuildingId", "Description", "Floor", "Name", "XCoordinate", "YCoordinate" },
+                columns: new[] { "Id", "BuildingId", "Description", "Floor", "ImageUrl", "Name", "XCoordinate", "YCoordinate" },
                 values: new object[,]
                 {
-                    { 1, 1, "Hoofdreceptie voor bezoekers en studenten.", 0, "Receptie", 12.5, 8.1999999999999993 },
-                    { 2, 1, "Grote ontmoetingsruimte voor evenementen en pauzes.", 0, "Aula", 24.100000000000001, 14.699999999999999 },
-                    { 3, 2, "Praktijklokaal voor technieklessen.", 1, "Praktijklokaal T1", 7.4000000000000004, 29.300000000000001 }
+                    { 1, 1, "Hoofdreceptie voor bezoekers en studenten.", 0, null, "Receptie", 12.5, 8.1999999999999993 },
+                    { 2, 1, "Grote ontmoetingsruimte voor evenementen en pauzes.", 0, null, "Aula", 24.100000000000001, 14.699999999999999 },
+                    { 3, 2, "Praktijklokaal voor technieklessen.", 1, null, "Praktijklokaal T1", 7.4000000000000004, 29.300000000000001 }
                 });
 
             migrationBuilder.InsertData(

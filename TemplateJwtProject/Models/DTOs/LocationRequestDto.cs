@@ -9,8 +9,10 @@ public class LocationRequestDto
     public string Name { get; set; } = string.Empty;
 
     [Required]
-    [MaxLength(1000)]
+    [MaxLength(5000)]
     public string Description { get; set; } = string.Empty;
+
+    public string? ImageUrl { get; set; }
 
     [Range(-5, 50)]
     public int Floor { get; set; }
