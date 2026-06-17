@@ -15,6 +15,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Location> Locations { get; set; }
     public DbSet<Models.Route> Routes { get; set; }
     public DbSet<RouteLocation> RouteLocations { get; set; }
+    public DbSet<AnalyticsEvent> AnalyticsEvents { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -94,6 +95,31 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .WithMany(l => l.RouteLocations)
             .HasForeignKey(rl => rl.LocationId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<AnalyticsEvent>()
+            .Property(e => e.EventType)
+            .HasMaxLength(40);
+
+        builder.Entity<AnalyticsEvent>()
+            .Property(e => e.Path)
+            .HasMaxLength(200);
+
+        builder.Entity<AnalyticsEvent>()
+            .Property(e => e.RouteName)
+            .HasMaxLength(100);
+
+        builder.Entity<AnalyticsEvent>()
+            .Property(e => e.VisitorId)
+            .HasMaxLength(80);
+
+        builder.Entity<AnalyticsEvent>()
+            .HasIndex(e => e.CreatedAt);
+
+        builder.Entity<AnalyticsEvent>()
+            .HasIndex(e => e.EventType);
+
+        builder.Entity<AnalyticsEvent>()
+            .HasIndex(e => e.RouteId);
 
         builder.Entity<Building>().HasData(
             new Building { Id = 1, Name = "Hoofdgebouw", Description = "Centraal schoolgebouw met receptie en kantoren." },

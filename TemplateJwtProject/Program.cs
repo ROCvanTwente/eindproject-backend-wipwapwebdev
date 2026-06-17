@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using TemplateJwtProject.Constants;
 using TemplateJwtProject.Data;
 using TemplateJwtProject.Models;
 using TemplateJwtProject.Services;
@@ -40,7 +41,12 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 
 // JWT Authentication configuration
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured");
+var secretKey = jwtSettings["SecretKey"];
+
+if (string.IsNullOrWhiteSpace(secretKey))
+{
+    throw new InvalidOperationException("JWT SecretKey is not configured");
+}
 
 builder.Services.AddAuthentication(options =>
 {
@@ -104,18 +110,15 @@ using (var scope = app.Services.CreateScope())
 
     var adminUser = await userManager.FindByEmailAsync(adminEmail);
 
-    if (adminUser == null)
+    if (app.Environment.IsDevelopment())
     {
-        adminUser = new ApplicationUser
-        {
-            UserName = adminEmail,
-            Email = adminEmail,
-            EmailConfirmed = true
-        };
+        adminEmail ??= "admin@example.com";
+        adminPassword ??= "Admin123!";
+    }
 
         var result = await userManager.CreateAsync(adminUser, adminPassword); // Use the password from environment variable or default
 
-        if (result.Succeeded)
+        if (adminUser == null)
         {
             await userManager.AddToRoleAsync(adminUser, Roles.Admin);
             logger.LogInformation("Admin account created: {AdminEmail}", LoggingUtilities.SanitizeForLog(adminEmail));
