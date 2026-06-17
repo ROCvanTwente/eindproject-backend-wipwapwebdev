@@ -92,6 +92,24 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     var dbContext = services.GetRequiredService<AppDbContext>();
 
+    await dbContext.Database.ExecuteSqlRawAsync("""
+        IF OBJECT_ID(N'[AspNetRoles]') IS NOT NULL
+           AND OBJECT_ID(N'[__EFMigrationsHistory]') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM [__EFMigrationsHistory] WHERE [MigrationId] = N'20260601064508_InitialCreate')
+        BEGIN
+            INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+            VALUES (N'20260601064508_InitialCreate', N'9.0.16');
+        END
+
+        IF OBJECT_ID(N'[AnalyticsEvents]') IS NOT NULL
+           AND OBJECT_ID(N'[__EFMigrationsHistory]') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM [__EFMigrationsHistory] WHERE [MigrationId] = N'20260611120000_AddAnalyticsEvents')
+        BEGIN
+            INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+            VALUES (N'20260611120000_AddAnalyticsEvents', N'9.0.16');
+        END
+        """);
+
     await dbContext.Database.MigrateAsync();
     await RoleInitializer.InitializeAsync(services);
 
