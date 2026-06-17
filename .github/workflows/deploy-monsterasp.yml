@@ -74,11 +74,36 @@ jobs:
 
             $relativeFtpPath = ConvertTo-FtpPath $RelativePath
             $targetUri = "$ftpRoot$(ConvertTo-FtpUriPath $relativeFtpPath)"
-            curl.exe --fail --silent --show-error --ftp-create-dirs --user "$($env:MONSTERASP_FTP_USERNAME):$($env:MONSTERASP_FTP_PASSWORD)" --upload-file "$LocalPath" "$targetUri"
-            Write-Host "Uploaded $relativeFtpPath"
+
+            for ($attempt = 1; $attempt -le 5; $attempt++) {
+              curl.exe --fail --silent --show-error --ftp-create-dirs --user "$($env:MONSTERASP_FTP_USERNAME):$($env:MONSTERASP_FTP_PASSWORD)" --upload-file "$LocalPath" "$targetUri"
+
+              if ($LASTEXITCODE -eq 0) {
+                Write-Host "Uploaded $relativeFtpPath"
+                return
+              }
+
+              if ($attempt -lt 5) {
+                Write-Warning "Upload failed for $relativeFtpPath. Retrying in 5 seconds... ($attempt/5)"
+                Start-Sleep -Seconds 5
+              }
+            }
+
+            throw "Upload failed for $relativeFtpPath after 5 attempts."
           }
 
-          Get-ChildItem -Path $localRoot -File -Recurse | ForEach-Object {
-            $relativePath = [System.IO.Path]::GetRelativePath($localRoot, $_.FullName)
-            Upload-FtpFile -LocalPath $_.FullName -RelativePath $relativePath
+          $appOfflinePath = Join-Path $env:RUNNER_TEMP "app_offline.htm"
+          Set-Content -Path $appOfflinePath -Value "<html><body><h1>Deploying</h1></body></html>" -NoNewline
+
+          try {
+            Upload-FtpFile -LocalPath $appOfflinePath -RelativePath "app_offline.htm"
+            Start-Sleep -Seconds 10
+
+            Get-ChildItem -Path $localRoot -File -Recurse | ForEach-Object {
+              $relativePath = [System.IO.Path]::GetRelativePath($localRoot, $_.FullName)
+              Upload-FtpFile -LocalPath $_.FullName -RelativePath $relativePath
+            }
+          }
+          finally {
+            curl.exe --silent --show-error --user "$($env:MONSTERASP_FTP_USERNAME):$($env:MONSTERASP_FTP_PASSWORD)" --quote "DELE /wwwroot/app_offline.htm" "$ftpRoot" | Out-Null
           }
