@@ -37,7 +37,8 @@ public class LocationController : ControllerBase
                 XCoordinate = l.XCoordinate,
                 YCoordinate = l.YCoordinate,
                 BuildingId = l.BuildingId,
-                BuildingName = l.Building != null ? l.Building.Name : string.Empty
+                BuildingName = l.Building != null ? l.Building.Name : string.Empty,
+                ImageUrl = l.ImageUrl
             })
             .ToListAsync();
 
@@ -83,7 +84,8 @@ public class LocationController : ControllerBase
             Floor = dto.Floor,
             XCoordinate = dto.XCoordinate,
             YCoordinate = dto.YCoordinate,
-            BuildingId = dto.BuildingId
+            BuildingId = dto.BuildingId,
+            ImageUrl = dto.ImageUrl
         };
 
         _context.Locations.Add(entity);
@@ -133,6 +135,7 @@ public class LocationController : ControllerBase
         entity.XCoordinate = dto.XCoordinate;
         entity.YCoordinate = dto.YCoordinate;
         entity.BuildingId = dto.BuildingId;
+        entity.ImageUrl = dto.ImageUrl;
 
         await _context.SaveChangesAsync();
 
@@ -189,7 +192,8 @@ public class LocationController : ControllerBase
             XCoordinate = location.XCoordinate,
             YCoordinate = location.YCoordinate,
             BuildingId = location.BuildingId,
-            BuildingName = location.Building?.Name ?? string.Empty
+            BuildingName = location.Building?.Name ?? string.Empty,
+            ImageUrl = location.ImageUrl
         };
     }
 }

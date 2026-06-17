@@ -1,10 +1,14 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TemplateJwtProject.Models;
 
 public class Location
 {
     public int Id { get; set; }
+
+    [Column(TypeName = "TEXT")] // Zorgt voor genoeg ruimte in de database
+    public string? ImageUrl { get; set; }
 
     [Required]
     [MaxLength(100)]
