@@ -97,8 +97,23 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var logger = services.GetRequiredService<ILogger<Program>>();
+    var dbContext = services.GetRequiredService<AppDbContext>();
     
     logger.LogInformation("Initializing application roles and admin user");
+
+    await dbContext.Database.ExecuteSqlRawAsync("""
+        IF OBJECT_ID(N'[Locations]') IS NOT NULL
+           AND COL_LENGTH(N'[Locations]', N'ImageUrl') IS NULL
+        BEGIN
+            ALTER TABLE [Locations] ADD [ImageUrl] nvarchar(max) NULL;
+        END
+
+        IF OBJECT_ID(N'[AspNetUsers]') IS NOT NULL
+           AND COL_LENGTH(N'[AspNetUsers]', N'PasswordChanged') IS NULL
+        BEGIN
+            ALTER TABLE [AspNetUsers] ADD [PasswordChanged] bit NOT NULL CONSTRAINT [DF_AspNetUsers_PasswordChanged] DEFAULT CAST(0 AS bit);
+        END
+        """);
     
     await RoleInitializer.InitializeAsync(services);
 
