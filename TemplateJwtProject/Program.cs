@@ -11,7 +11,6 @@ using TemplateJwtProject.Constants;
 using TemplateJwtProject.Data;
 using TemplateJwtProject.Models;
 using TemplateJwtProject.Services;
-using TemplateJwtProject.Constants;
 using TemplateJwtProject.Utilities;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -105,10 +104,8 @@ using (var scope = app.Services.CreateScope())
 
     // Seed admin user
     var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-    var adminEmail = Environment.GetEnvironmentVariable("ADMIN_EMAIL") ?? builder.Configuration["AppSettings:AdminEmail"] ?? "default_email@example.com";
-    var adminPassword = Environment.GetEnvironmentVariable("ADMIN_PASSWORD") ?? builder.Configuration["AppSettings:AdminPassword"] ?? "Admin123!";
-
-    var adminUser = await userManager.FindByEmailAsync(adminEmail);
+    var adminEmail = Environment.GetEnvironmentVariable("ADMIN_EMAIL") ?? builder.Configuration["AppSettings:AdminEmail"];
+    var adminPassword = Environment.GetEnvironmentVariable("ADMIN_PASSWORD") ?? builder.Configuration["AppSettings:AdminPassword"];
 
     if (app.Environment.IsDevelopment())
     {
@@ -116,23 +113,46 @@ using (var scope = app.Services.CreateScope())
         adminPassword ??= "Admin123!";
     }
 
-        var result = await userManager.CreateAsync(adminUser, adminPassword); // Use the password from environment variable or default
+    if (!string.IsNullOrWhiteSpace(adminEmail) && !string.IsNullOrWhiteSpace(adminPassword))
+    {
+        var adminUser = await userManager.FindByEmailAsync(adminEmail);
 
         if (adminUser == null)
         {
-            await userManager.AddToRoleAsync(adminUser, Roles.Admin);
-            logger.LogInformation("Admin account created: {AdminEmail}", LoggingUtilities.SanitizeForLog(adminEmail));
+            adminUser = new ApplicationUser
+            {
+                UserName = adminEmail,
+                Email = adminEmail,
+                EmailConfirmed = true
+            };
+
+            var result = await userManager.CreateAsync(adminUser, adminPassword);
+
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(adminUser, Roles.Admin);
+                logger.LogInformation("Admin account created: {AdminEmail}", LoggingUtilities.SanitizeForLog(adminEmail));
+            }
+            else
+            {
+                logger.LogError("Failed to create admin account for {AdminEmail}. Errors: {Errors}",
+                    LoggingUtilities.SanitizeForLog(adminEmail),
+                    string.Join("; ", result.Errors.Select(e => LoggingUtilities.SanitizeForLog(e.Description))));
+            }
         }
         else
         {
-            logger.LogError("Failed to create admin account for {AdminEmail}. Errors: {Errors}", 
-                LoggingUtilities.SanitizeForLog(adminEmail),
-                string.Join("; ", result.Errors.Select(e => LoggingUtilities.SanitizeForLog(e.Description))));
+            if (!await userManager.IsInRoleAsync(adminUser, Roles.Admin))
+            {
+                await userManager.AddToRoleAsync(adminUser, Roles.Admin);
+            }
+
+            logger.LogInformation("Admin account already exists: {AdminEmail}", LoggingUtilities.SanitizeForLog(adminEmail));
         }
     }
     else
     {
-        logger.LogInformation("Admin account already exists: {AdminEmail}", LoggingUtilities.SanitizeForLog(adminEmail));
+        logger.LogInformation("Admin seed skipped. Set ADMIN_EMAIL and ADMIN_PASSWORD to create one.");
     }
 }
 
@@ -151,8 +171,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// Add SQLite3 logging
-app.Services.GetRequiredService<ILoggerFactory>().AddConsole(minLevel: LogLevel.Debug);
 
 app.Run();
