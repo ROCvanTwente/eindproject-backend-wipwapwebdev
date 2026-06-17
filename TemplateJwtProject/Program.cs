@@ -108,6 +108,21 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE [Locations] ADD [ImageUrl] nvarchar(max) NULL;
         END
 
+        IF OBJECT_ID(N'[Buildings]') IS NOT NULL
+        BEGIN
+            ALTER TABLE [Buildings] ALTER COLUMN [Description] nvarchar(max) NOT NULL;
+        END
+
+        IF OBJECT_ID(N'[Locations]') IS NOT NULL
+        BEGIN
+            ALTER TABLE [Locations] ALTER COLUMN [Description] nvarchar(max) NOT NULL;
+        END
+
+        IF OBJECT_ID(N'[Routes]') IS NOT NULL
+        BEGIN
+            ALTER TABLE [Routes] ALTER COLUMN [Description] nvarchar(max) NOT NULL;
+        END
+
         IF OBJECT_ID(N'[AspNetUsers]') IS NOT NULL
            AND COL_LENGTH(N'[AspNetUsers]', N'PasswordChanged') IS NULL
         BEGIN

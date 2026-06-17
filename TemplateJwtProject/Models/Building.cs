@@ -11,7 +11,7 @@ public class Building
     public string Name { get; set; } = string.Empty;
 
     [Required]
-    [MaxLength(500)]
+    [MaxLength(20000)]
     public string Description { get; set; } = string.Empty;
 
     public ICollection<Location> Locations { get; set; } = new List<Location>();

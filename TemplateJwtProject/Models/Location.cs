@@ -15,7 +15,7 @@ public class Location
     public string Name { get; set; } = string.Empty;
 
     [Required]
-    [MaxLength(1000)]
+    [MaxLength(20000)]
     public string Description { get; set; } = string.Empty;
 
     [Range(-5, 50)]

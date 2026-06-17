@@ -11,7 +11,7 @@ public class Route
     public string Name { get; set; } = string.Empty;
 
     [Required]
-    [MaxLength(1000)]
+    [MaxLength(20000)]
     public string Description { get; set; } = string.Empty;
 
     [Range(1, 600)]
