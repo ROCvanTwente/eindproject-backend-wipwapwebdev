@@ -108,6 +108,30 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE [Locations] ADD [ImageUrl] nvarchar(max) NULL;
         END
 
+        IF OBJECT_ID(N'[Locations]') IS NOT NULL
+           AND COL_LENGTH(N'[Locations]', N'ImageUrl') IS NOT NULL
+           AND (
+               SELECT DATA_TYPE
+               FROM INFORMATION_SCHEMA.COLUMNS
+               WHERE TABLE_NAME = N'Locations'
+                 AND COLUMN_NAME = N'ImageUrl'
+           ) <> N'nvarchar'
+        BEGIN
+            ALTER TABLE [Locations] ALTER COLUMN [ImageUrl] nvarchar(max) NULL;
+        END
+
+        IF OBJECT_ID(N'[Locations]') IS NOT NULL
+           AND COL_LENGTH(N'[Locations]', N'ImageUrl') IS NOT NULL
+           AND (
+               SELECT CHARACTER_MAXIMUM_LENGTH
+               FROM INFORMATION_SCHEMA.COLUMNS
+               WHERE TABLE_NAME = N'Locations'
+                 AND COLUMN_NAME = N'ImageUrl'
+           ) <> -1
+        BEGIN
+            ALTER TABLE [Locations] ALTER COLUMN [ImageUrl] nvarchar(max) NULL;
+        END
+
         IF OBJECT_ID(N'[Buildings]') IS NOT NULL
         BEGIN
             ALTER TABLE [Buildings] ALTER COLUMN [Description] nvarchar(max) NOT NULL;

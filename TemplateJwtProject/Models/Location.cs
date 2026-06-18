@@ -7,7 +7,7 @@ public class Location
 {
     public int Id { get; set; }
 
-    [Column(TypeName = "TEXT")] // Zorgt voor genoeg ruimte in de database
+    [Column(TypeName = "nvarchar(max)")]
     public string? ImageUrl { get; set; }
 
     [Required]
