@@ -102,7 +102,6 @@ using (var scope = app.Services.CreateScope())
     var dbContext = services.GetRequiredService<AppDbContext>();
     
     logger.LogInformation("Initializing application roles and admin user");
-    await dbContext.Database.MigrateAsync();
 
     await dbContext.Database.ExecuteSqlRawAsync("""
         IF OBJECT_ID(N'[Locations]') IS NOT NULL
