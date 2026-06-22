@@ -4,9 +4,10 @@ namespace TemplateJwtProject.Models.DTOs;
 
 public class LoginDto
 {
-    [Required]
+    public string Identifier { get; set; } = string.Empty;
+
     [EmailAddress]
-    public string Email { get; set; } = string.Empty;
+    public string? Email { get; set; }
 
     [Required]
     public string Password { get; set; } = string.Empty;

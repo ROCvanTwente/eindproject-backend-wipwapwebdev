@@ -51,6 +51,8 @@ public class JwtService : IJwtService
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
         claims.Add(new Claim("PasswordChanged", user.PasswordChanged.ToString()));
+        claims.Add(new Claim("RequiresAccountSetup", user.RequiresAccountSetup.ToString()));
+        claims.Add(new Claim("UserName", user.UserName ?? string.Empty));
 
         var token = new JwtSecurityToken(
             issuer: issuer,

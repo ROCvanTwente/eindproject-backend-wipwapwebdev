@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -20,7 +21,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOptions => sqlOptions.EnableRetryOnFailure()));
+        sqlOptions => sqlOptions.EnableRetryOnFailure())
+        .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
 // Identity configuration
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -100,6 +102,7 @@ using (var scope = app.Services.CreateScope())
     var dbContext = services.GetRequiredService<AppDbContext>();
     
     logger.LogInformation("Initializing application roles and admin user");
+    await dbContext.Database.MigrateAsync();
 
     await dbContext.Database.ExecuteSqlRawAsync("""
         IF OBJECT_ID(N'[Locations]') IS NOT NULL
@@ -151,6 +154,24 @@ using (var scope = app.Services.CreateScope())
            AND COL_LENGTH(N'[AspNetUsers]', N'PasswordChanged') IS NULL
         BEGIN
             ALTER TABLE [AspNetUsers] ADD [PasswordChanged] bit NOT NULL CONSTRAINT [DF_AspNetUsers_PasswordChanged] DEFAULT CAST(0 AS bit);
+        END
+
+        IF OBJECT_ID(N'[AspNetUsers]') IS NOT NULL
+           AND COL_LENGTH(N'[AspNetUsers]', N'RequiresAccountSetup') IS NULL
+        BEGIN
+            ALTER TABLE [AspNetUsers] ADD [RequiresAccountSetup] bit NOT NULL CONSTRAINT [DF_AspNetUsers_RequiresAccountSetup] DEFAULT CAST(0 AS bit);
+        END
+
+        IF OBJECT_ID(N'[AspNetUsers]') IS NOT NULL
+           AND COL_LENGTH(N'[AspNetUsers]', N'FirstLoginCodeHash') IS NULL
+        BEGIN
+            ALTER TABLE [AspNetUsers] ADD [FirstLoginCodeHash] nvarchar(max) NULL;
+        END
+
+        IF OBJECT_ID(N'[AspNetUsers]') IS NOT NULL
+           AND COL_LENGTH(N'[AspNetUsers]', N'FirstLoginCodeExpiresAt') IS NULL
+        BEGIN
+            ALTER TABLE [AspNetUsers] ADD [FirstLoginCodeExpiresAt] datetime2 NULL;
         END
         """);
     
@@ -216,7 +237,10 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsEnvironment("Docker"))
+{
+    app.UseHttpsRedirection();
+}
 
 // CORS middleware (for Authentication and Authorization!)
 app.UseCors("DefaultCorsPolicy");
