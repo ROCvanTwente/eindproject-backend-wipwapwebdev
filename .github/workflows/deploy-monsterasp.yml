@@ -105,8 +105,10 @@ jobs:
             }
           }
           finally {
-            curl.exe --silent --show-error --user "$($env:MONSTERASP_FTP_USERNAME):$($env:MONSTERASP_FTP_PASSWORD)" --quote "DELE app_offline.htm" "$ftpRoot" | Out-Null
-            if ($LASTEXITCODE -ne 0) {
+            curl.exe --silent --show-error --user "$($env:MONSTERASP_FTP_USERNAME):$($env:MONSTERASP_FTP_PASSWORD)" --quote "-DELE app_offline.htm" "$ftpRoot" | Out-Null
+            $deleteExitCode = $LASTEXITCODE
+            if ($deleteExitCode -ne 0) {
               Write-Warning "Could not delete app_offline.htm during cleanup. It may already be gone or the FTP server rejected cleanup."
             }
+            $global:LASTEXITCODE = 0
           }
