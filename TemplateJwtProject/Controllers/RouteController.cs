@@ -143,13 +143,7 @@ public class RouteController : ControllerBase
         var oldName = route.Name;
         var oldLocationCount = route.RouteLocations.Count;
 
-        route.Name = dto.Name;
-        route.Description = dto.Description;
-        route.EstimatedTimeMinutes = dto.EstimatedTimeMinutes;
-
-        _context.RouteLocations.RemoveRange(route.RouteLocations);
-
-        route.RouteLocations = dto.Locations.Select(l => new RouteLocationEntity
+        var updatedRouteLocations = dto.Locations.Select(l => new RouteLocationEntity
         {
             RouteId = route.Id,
             LocationId = l.LocationId,
@@ -157,7 +151,25 @@ public class RouteController : ControllerBase
             Notes = l.Notes
         }).ToList();
 
-        await _context.SaveChangesAsync();
+        var executionStrategy = _context.Database.CreateExecutionStrategy();
+        await executionStrategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            route.Name = dto.Name;
+            route.Description = dto.Description;
+            route.EstimatedTimeMinutes = dto.EstimatedTimeMinutes;
+
+            _context.RouteLocations.RemoveRange(route.RouteLocations);
+            await _context.SaveChangesAsync();
+
+            _context.RouteLocations.AddRange(updatedRouteLocations);
+            await _context.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+        });
+
+        route.RouteLocations = updatedRouteLocations;
 
         _logger.LogInformation("Route updated: {RouteId} - renamed from {OldName} to {NewName}, locations changed from {OldLocationCount} to {NewLocationCount}", 
             id, 

@@ -11,7 +11,6 @@ using TemplateJwtProject.Constants;
 using TemplateJwtProject.Data;
 using TemplateJwtProject.Models;
 using TemplateJwtProject.Services;
-using TemplateJwtProject.Constants;
 using TemplateJwtProject.Utilities;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -98,17 +97,69 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var logger = services.GetRequiredService<ILogger<Program>>();
+    var dbContext = services.GetRequiredService<AppDbContext>();
     
     logger.LogInformation("Initializing application roles and admin user");
+
+    await dbContext.Database.ExecuteSqlRawAsync("""
+        IF OBJECT_ID(N'[Locations]') IS NOT NULL
+           AND COL_LENGTH(N'[Locations]', N'ImageUrl') IS NULL
+        BEGIN
+            ALTER TABLE [Locations] ADD [ImageUrl] nvarchar(max) NULL;
+        END
+
+        IF OBJECT_ID(N'[Locations]') IS NOT NULL
+           AND COL_LENGTH(N'[Locations]', N'ImageUrl') IS NOT NULL
+           AND (
+               SELECT DATA_TYPE
+               FROM INFORMATION_SCHEMA.COLUMNS
+               WHERE TABLE_NAME = N'Locations'
+                 AND COLUMN_NAME = N'ImageUrl'
+           ) <> N'nvarchar'
+        BEGIN
+            ALTER TABLE [Locations] ALTER COLUMN [ImageUrl] nvarchar(max) NULL;
+        END
+
+        IF OBJECT_ID(N'[Locations]') IS NOT NULL
+           AND COL_LENGTH(N'[Locations]', N'ImageUrl') IS NOT NULL
+           AND (
+               SELECT CHARACTER_MAXIMUM_LENGTH
+               FROM INFORMATION_SCHEMA.COLUMNS
+               WHERE TABLE_NAME = N'Locations'
+                 AND COLUMN_NAME = N'ImageUrl'
+           ) <> -1
+        BEGIN
+            ALTER TABLE [Locations] ALTER COLUMN [ImageUrl] nvarchar(max) NULL;
+        END
+
+        IF OBJECT_ID(N'[Buildings]') IS NOT NULL
+        BEGIN
+            ALTER TABLE [Buildings] ALTER COLUMN [Description] nvarchar(max) NOT NULL;
+        END
+
+        IF OBJECT_ID(N'[Locations]') IS NOT NULL
+        BEGIN
+            ALTER TABLE [Locations] ALTER COLUMN [Description] nvarchar(max) NOT NULL;
+        END
+
+        IF OBJECT_ID(N'[Routes]') IS NOT NULL
+        BEGIN
+            ALTER TABLE [Routes] ALTER COLUMN [Description] nvarchar(max) NOT NULL;
+        END
+
+        IF OBJECT_ID(N'[AspNetUsers]') IS NOT NULL
+           AND COL_LENGTH(N'[AspNetUsers]', N'PasswordChanged') IS NULL
+        BEGIN
+            ALTER TABLE [AspNetUsers] ADD [PasswordChanged] bit NOT NULL CONSTRAINT [DF_AspNetUsers_PasswordChanged] DEFAULT CAST(0 AS bit);
+        END
+        """);
     
     await RoleInitializer.InitializeAsync(services);
 
     // Seed admin user
     var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-    var adminEmail = Environment.GetEnvironmentVariable("ADMIN_EMAIL") ?? builder.Configuration["AppSettings:AdminEmail"] ?? "default_email@example.com";
-    var adminPassword = Environment.GetEnvironmentVariable("ADMIN_PASSWORD") ?? builder.Configuration["AppSettings:AdminPassword"] ?? "Admin123!";
-
-    var adminUser = await userManager.FindByEmailAsync(adminEmail);
+    var adminEmail = Environment.GetEnvironmentVariable("ADMIN_EMAIL") ?? builder.Configuration["AppSettings:AdminEmail"];
+    var adminPassword = Environment.GetEnvironmentVariable("ADMIN_PASSWORD") ?? builder.Configuration["AppSettings:AdminPassword"];
 
     if (app.Environment.IsDevelopment())
     {
@@ -116,23 +167,46 @@ using (var scope = app.Services.CreateScope())
         adminPassword ??= "Admin123!";
     }
 
-        var result = await userManager.CreateAsync(adminUser, adminPassword); // Use the password from environment variable or default
+    if (!string.IsNullOrWhiteSpace(adminEmail) && !string.IsNullOrWhiteSpace(adminPassword))
+    {
+        var adminUser = await userManager.FindByEmailAsync(adminEmail);
 
         if (adminUser == null)
         {
-            await userManager.AddToRoleAsync(adminUser, Roles.Admin);
-            logger.LogInformation("Admin account created: {AdminEmail}", LoggingUtilities.SanitizeForLog(adminEmail));
+            adminUser = new ApplicationUser
+            {
+                UserName = adminEmail,
+                Email = adminEmail,
+                EmailConfirmed = true
+            };
+
+            var result = await userManager.CreateAsync(adminUser, adminPassword);
+
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(adminUser, Roles.Admin);
+                logger.LogInformation("Admin account created: {AdminEmail}", LoggingUtilities.SanitizeForLog(adminEmail));
+            }
+            else
+            {
+                logger.LogError("Failed to create admin account for {AdminEmail}. Errors: {Errors}",
+                    LoggingUtilities.SanitizeForLog(adminEmail),
+                    string.Join("; ", result.Errors.Select(e => LoggingUtilities.SanitizeForLog(e.Description))));
+            }
         }
         else
         {
-            logger.LogError("Failed to create admin account for {AdminEmail}. Errors: {Errors}", 
-                LoggingUtilities.SanitizeForLog(adminEmail),
-                string.Join("; ", result.Errors.Select(e => LoggingUtilities.SanitizeForLog(e.Description))));
+            if (!await userManager.IsInRoleAsync(adminUser, Roles.Admin))
+            {
+                await userManager.AddToRoleAsync(adminUser, Roles.Admin);
+            }
+
+            logger.LogInformation("Admin account already exists: {AdminEmail}", LoggingUtilities.SanitizeForLog(adminEmail));
         }
     }
     else
     {
-        logger.LogInformation("Admin account already exists: {AdminEmail}", LoggingUtilities.SanitizeForLog(adminEmail));
+        logger.LogInformation("Admin seed skipped. Set ADMIN_EMAIL and ADMIN_PASSWORD to create one.");
     }
 }
 
@@ -151,8 +225,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// Add SQLite3 logging
-app.Services.GetRequiredService<ILoggerFactory>().AddConsole(minLevel: LogLevel.Debug);
 
 app.Run();

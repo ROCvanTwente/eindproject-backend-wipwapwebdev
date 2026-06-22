@@ -38,7 +38,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
         builder.Entity<Building>()
             .Property(b => b.Description)
-            .HasMaxLength(5000);
+            .HasMaxLength(20000);
 
         builder.Entity<Building>()
             .HasIndex(b => b.Name)
@@ -50,7 +50,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
         builder.Entity<Location>()
             .Property(l => l.Description)
-            .HasMaxLength(5000);
+            .HasMaxLength(20000);
 
         builder.Entity<Location>()
             .HasIndex(l => l.Name);
@@ -67,7 +67,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
         builder.Entity<Models.Route>()
             .Property(r => r.Description)
-            .HasMaxLength(1000);
+            .HasMaxLength(20000);
 
         builder.Entity<Models.Route>()
             .HasIndex(r => r.Name)
