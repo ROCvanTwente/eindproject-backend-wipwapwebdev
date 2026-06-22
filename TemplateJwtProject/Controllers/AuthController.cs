@@ -120,6 +120,66 @@ public class AuthController : ControllerBase
         });
     }
 
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto model)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var userId = _userManager.GetUserId(User);
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            _logger.LogWarning(
+                "Password change failed: user not found for id {UserId}",
+                LoggingUtilities.SanitizeForLog(userId));
+
+            return Unauthorized();
+        }
+
+        var result = await _userManager.ChangePasswordAsync(user, model.CurrentPassword, model.NewPassword);
+        if (!result.Succeeded)
+        {
+            _logger.LogWarning(
+                "Password change failed for user {Email}. Errors: {Errors}",
+                LoggingUtilities.SanitizeForLog(user.Email),
+                string.Join("; ", result.Errors.Select(e => LoggingUtilities.SanitizeForLog(e.Description))));
+
+            return BadRequest(new { message = "Failed to change password", errors = result.Errors });
+        }
+
+        user.PasswordChanged = true;
+        var updateResult = await _userManager.UpdateAsync(user);
+
+        if (!updateResult.Succeeded)
+        {
+            _logger.LogError(
+                "Password change succeeded but user update failed for {Email}. Errors: {Errors}",
+                LoggingUtilities.SanitizeForLog(user.Email),
+                string.Join("; ", updateResult.Errors.Select(e => LoggingUtilities.SanitizeForLog(e.Description))));
+
+            return BadRequest(new { message = "Password changed, but failed to update user", errors = updateResult.Errors });
+        }
+
+        await _refreshTokenService.RevokeAllUserRefreshTokensAsync(user.Id);
+
+        _logger.LogInformation(
+            "Password changed for user {Email}",
+            LoggingUtilities.SanitizeForLog(user.Email));
+
+        return Ok(new
+        {
+            message = "Password changed successfully",
+            email = user.Email
+        });
+    }
+
     [HttpPost("refresh-token")]
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto model)
     {
