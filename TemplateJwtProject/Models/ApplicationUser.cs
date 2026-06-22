@@ -5,8 +5,7 @@ namespace TemplateJwtProject.Models;
 public class ApplicationUser : IdentityUser
 {
     public bool PasswordChanged { get; set; } = false;
-    // Je kunt hier extra properties toevoegen
-    // Bijvoorbeeld:
-    // public string? FirstName { get; set; }
-    // public string? LastName { get; set; }
+    public bool RequiresAccountSetup { get; set; } = false;
+    public string? FirstLoginCodeHash { get; set; }
+    public DateTime? FirstLoginCodeExpiresAt { get; set; }
 }
