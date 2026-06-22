@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Cryptography;
+using System.Text;
 using TemplateJwtProject.Constants;
 using TemplateJwtProject.Models;
 using TemplateJwtProject.Models.DTOs;
@@ -22,6 +24,67 @@ public class AdminController : ControllerBase
     {
         _userManager = userManager;
         _logger = logger;
+    }
+
+    [HttpPost("invite-admin")]
+    public async Task<IActionResult> InviteAdmin([FromBody] CreateAdminInviteDto model)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var existingUser = await _userManager.FindByEmailAsync(model.Email);
+        if (existingUser != null)
+        {
+            return BadRequest(new { message = "Er bestaat al een account met dit e-mailadres." });
+        }
+
+        var activationCode = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+        var activationCodeHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(activationCode)));
+        var tempUserName = $"pending-{Guid.NewGuid():N}";
+
+        var user = new ApplicationUser
+        {
+            UserName = tempUserName,
+            Email = model.Email.Trim(),
+            EmailConfirmed = true,
+            PasswordChanged = false,
+            RequiresAccountSetup = true,
+            FirstLoginCodeHash = activationCodeHash,
+            FirstLoginCodeExpiresAt = DateTime.UtcNow.AddDays(7)
+        };
+
+        var createResult = await _userManager.CreateAsync(user);
+        if (!createResult.Succeeded)
+        {
+            return BadRequest(new
+            {
+                message = "De admin-uitnodiging kon niet worden aangemaakt.",
+                errors = createResult.Errors
+            });
+        }
+
+        var roleResult = await _userManager.AddToRoleAsync(user, Roles.Admin);
+        if (!roleResult.Succeeded)
+        {
+            await _userManager.DeleteAsync(user);
+            return BadRequest(new
+            {
+                message = "De admin-rol kon niet worden gekoppeld.",
+                errors = roleResult.Errors
+            });
+        }
+
+        _logger.LogInformation(
+            "Admin invitation created for {Email}",
+            LoggingUtilities.SanitizeForLog(user.Email));
+
+        return Ok(new
+        {
+            message = "Admin-uitnodiging aangemaakt.",
+            email = user.Email,
+            activationCode,
+            activationExpiresAt = user.FirstLoginCodeExpiresAt
+        });
     }
 
     [HttpPost("assign-role")]
@@ -105,6 +168,15 @@ public class AdminController : ControllerBase
             return NotFound(new { message = "User not found" });
         }
 
+        var newUserName = model.NewUserName.Trim();
+        var existingUser = await _userManager.FindByNameAsync(newUserName);
+        if (existingUser != null && existingUser.Id != user.Id)
+        {
+            return BadRequest(new { message = "Deze gebruikersnaam is al in gebruik." });
+        }
+
+        user.UserName = newUserName;
+
         if (!string.IsNullOrEmpty(user.PasswordHash))
         {
             var removePasswordResult = await _userManager.RemovePasswordAsync(user);
@@ -129,6 +201,9 @@ public class AdminController : ControllerBase
         }
 
         user.PasswordChanged = true;
+        user.RequiresAccountSetup = false;
+        user.FirstLoginCodeHash = null;
+        user.FirstLoginCodeExpiresAt = null;
         var updateResult = await _userManager.UpdateAsync(user);
 
         if (!updateResult.Succeeded)
@@ -231,7 +306,8 @@ public class AdminController : ControllerBase
                 id = admin.Id,
                 email = admin.Email,
                 userName = admin.UserName,
-                roles = roles
+                roles = roles,
+                requiresAccountSetup = admin.RequiresAccountSetup
             });
         }
 

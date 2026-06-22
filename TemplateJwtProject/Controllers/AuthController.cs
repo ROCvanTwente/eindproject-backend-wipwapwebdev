@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TemplateJwtProject.Constants;
 using TemplateJwtProject.Models;
 using TemplateJwtProject.Models.DTOs;
@@ -87,11 +88,30 @@ public class AuthController : ControllerBase
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
-        //
-        var user = await _userManager.FindByEmailAsync(model.Email);
+
+        var identifier = string.IsNullOrWhiteSpace(model.Identifier) ? model.Email?.Trim() : model.Identifier.Trim();
+        if (string.IsNullOrWhiteSpace(identifier))
+        {
+            return BadRequest(new { message = "Email of gebruikersnaam is verplicht." });
+        }
+
+        var normalizedIdentifier = identifier.ToUpperInvariant();
+        var user = await _userManager.Users.FirstOrDefaultAsync(u =>
+            u.NormalizedEmail == normalizedIdentifier || u.NormalizedUserName == normalizedIdentifier);
+
         if (user == null)
         {
             return Unauthorized(new { message = "Invalid email or password" });
+        }
+
+        if (user.RequiresAccountSetup)
+        {
+            return Unauthorized(new
+            {
+                message = "Account setup is still required before this admin can sign in.",
+                requiresAccountSetup = true,
+                email = user.Email
+            });
         }
         
         var result = await _signInManager.CheckPasswordSignInAsync(user, model.Password, false);
@@ -106,8 +126,8 @@ public class AuthController : ControllerBase
         var roles = await _userManager.GetRolesAsync(user);
 
         _logger.LogInformation(
-            "User {Email} logged in successfully with roles: {Roles}",
-            LoggingUtilities.SanitizeForLog(model.Email),
+            "User {Identifier} logged in successfully with roles: {Roles}",
+            LoggingUtilities.SanitizeForLog(identifier),
             string.Join(", ", roles));
 
         return Ok(new AuthResponseDto
@@ -118,6 +138,71 @@ public class AuthController : ControllerBase
             Roles = roles.ToList(),
             ExpiresAt = DateTime.UtcNow.AddMinutes(60)
         });
+    }
+
+    [HttpPost("complete-first-login")]
+    public async Task<IActionResult> CompleteFirstLogin([FromBody] CompleteFirstLoginDto model)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var user = await _userManager.FindByEmailAsync(model.Email);
+        if (user == null || !user.RequiresAccountSetup)
+        {
+            return BadRequest(new { message = "Deze uitnodiging is niet meer geldig." });
+        }
+
+        if (user.FirstLoginCodeExpiresAt is null || user.FirstLoginCodeExpiresAt <= DateTime.UtcNow)
+        {
+            return BadRequest(new { message = "De activatiecode is verlopen." });
+        }
+
+        var codeHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(model.ActivationCode.Trim())));
+        if (!string.Equals(user.FirstLoginCodeHash, codeHash, StringComparison.Ordinal))
+        {
+            return BadRequest(new { message = "De activatiecode is ongeldig." });
+        }
+
+        var newUserName = model.UserName.Trim();
+        var existingUser = await _userManager.FindByNameAsync(newUserName);
+        if (existingUser != null && existingUser.Id != user.Id)
+        {
+            return BadRequest(new { message = "Deze gebruikersnaam is al in gebruik." });
+        }
+
+        user.UserName = newUserName;
+
+        var addPasswordResult = await _userManager.AddPasswordAsync(user, model.NewPassword);
+        if (!addPasswordResult.Succeeded)
+        {
+            return BadRequest(new
+            {
+                message = "Het account kon niet worden geactiveerd.",
+                errors = addPasswordResult.Errors
+            });
+        }
+
+        user.PasswordChanged = true;
+        user.RequiresAccountSetup = false;
+        user.FirstLoginCodeHash = null;
+        user.FirstLoginCodeExpiresAt = null;
+
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            return BadRequest(new
+            {
+                message = "Het account kon niet worden geactiveerd.",
+                errors = updateResult.Errors
+            });
+        }
+
+        _logger.LogInformation(
+            "Admin account setup completed for {Email} with username {UserName}",
+            LoggingUtilities.SanitizeForLog(user.Email),
+            LoggingUtilities.SanitizeForLog(user.UserName));
+
+        return Ok(new { message = "Account succesvol geactiveerd." });
     }
 
     [Authorize]
