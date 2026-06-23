@@ -1,0 +1,114 @@
+name: Deploy backend to MonsterASP
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: windows-latest
+    env:
+      MONSTERASP_FTP_SERVER: ${{ secrets.MONSTERASP_FTP_SERVER }}
+      MONSTERASP_FTP_USERNAME: ${{ secrets.MONSTERASP_FTP_USERNAME }}
+      MONSTERASP_FTP_PASSWORD: ${{ secrets.MONSTERASP_FTP_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore TemplateJwtProject/TemplateJwtProject.csproj
+
+      - name: Build
+        run: dotnet build TemplateJwtProject/TemplateJwtProject.csproj --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish TemplateJwtProject/TemplateJwtProject.csproj --configuration Release --no-build --output publish/monsterasp
+
+      - name: Check MonsterASP FTP secrets
+        shell: pwsh
+        run: |
+          $missing = @()
+          if ($env:MONSTERASP_FTP_SERVER -eq "") { $missing += "MONSTERASP_FTP_SERVER" }
+          if ($env:MONSTERASP_FTP_USERNAME -eq "") { $missing += "MONSTERASP_FTP_USERNAME" }
+          if ($env:MONSTERASP_FTP_PASSWORD -eq "") { $missing += "MONSTERASP_FTP_PASSWORD" }
+
+          if ($missing.Count -gt 0) {
+            Write-Warning "Skipping FTP deploy. Missing GitHub secrets: $($missing -join ', ')"
+          }
+
+      - name: Deploy to MonsterASP
+        if: ${{ env.MONSTERASP_FTP_SERVER != '' && env.MONSTERASP_FTP_USERNAME != '' && env.MONSTERASP_FTP_PASSWORD != '' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $localRoot = (Resolve-Path "publish/monsterasp").Path
+          $ftpRoot = "ftp://$env:MONSTERASP_FTP_SERVER/wwwroot/"
+
+          function ConvertTo-FtpPath {
+            param([Parameter(Mandatory = $true)][string]$Path)
+            return ($Path -replace "\\", "/").TrimStart("/")
+          }
+
+          function ConvertTo-FtpUriPath {
+            param([Parameter(Mandatory = $true)][string]$Path)
+            return ((ConvertTo-FtpPath $Path).Split("/") | ForEach-Object {
+              [System.Uri]::EscapeDataString($_)
+            }) -join "/"
+          }
+
+          function Upload-FtpFile {
+            param(
+              [Parameter(Mandatory = $true)][string]$LocalPath,
+              [Parameter(Mandatory = $true)][string]$RelativePath
+            )
+
+            $relativeFtpPath = ConvertTo-FtpPath $RelativePath
+            $targetUri = "$ftpRoot$(ConvertTo-FtpUriPath $relativeFtpPath)"
+
+            for ($attempt = 1; $attempt -le 5; $attempt++) {
+              curl.exe --fail --silent --show-error --ftp-create-dirs --user "$($env:MONSTERASP_FTP_USERNAME):$($env:MONSTERASP_FTP_PASSWORD)" --upload-file "$LocalPath" "$targetUri"
+
+              if ($LASTEXITCODE -eq 0) {
+                Write-Host "Uploaded $relativeFtpPath"
+                return
+              }
+
+              if ($attempt -lt 5) {
+                Write-Warning "Upload failed for $relativeFtpPath. Retrying in 5 seconds... ($attempt/5)"
+                Start-Sleep -Seconds 5
+              }
+            }
+
+            throw "Upload failed for $relativeFtpPath after 5 attempts."
+          }
+
+          $appOfflinePath = Join-Path $env:RUNNER_TEMP "app_offline.htm"
+          Set-Content -Path $appOfflinePath -Value "<html><body><h1>Deploying</h1></body></html>" -NoNewline
+
+          try {
+            Upload-FtpFile -LocalPath $appOfflinePath -RelativePath "app_offline.htm"
+            Start-Sleep -Seconds 10
+
+            Get-ChildItem -Path $localRoot -File -Recurse | ForEach-Object {
+              $relativePath = [System.IO.Path]::GetRelativePath($localRoot, $_.FullName)
+              Upload-FtpFile -LocalPath $_.FullName -RelativePath $relativePath
+            }
+          }
+          finally {
+            curl.exe --silent --show-error --user "$($env:MONSTERASP_FTP_USERNAME):$($env:MONSTERASP_FTP_PASSWORD)" --quote "-DELE app_offline.htm" "$ftpRoot" | Out-Null
+            $deleteExitCode = $LASTEXITCODE
+            if ($deleteExitCode -ne 0) {
+              Write-Warning "Could not delete app_offline.htm during cleanup. It may already be gone or the FTP server rejected cleanup."
+            }
+            $global:LASTEXITCODE = 0
+          }
